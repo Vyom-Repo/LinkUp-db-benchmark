@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { 
   Home, 
   Compass, 
-  Search, 
   User, 
   TrendingUp, 
   RefreshCw, 
@@ -274,31 +273,6 @@ export default function FeedPage() {
               >
                 <Compass size={17} />
                 <span>Explore Topics</span>
-              </button>
-
-              <button 
-                onClick={() => navigate('/explore')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.6rem 0.75rem',
-                  borderRadius: '8px',
-                  backgroundColor: 'transparent',
-                  color: 'var(--text-secondary)',
-                  fontWeight: 600,
-                  fontSize: '0.875rem',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  width: '100%',
-                  transition: 'background-color 0.15s ease'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F2EFE9'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                <Search size={17} />
-                <span>Search</span>
               </button>
             </nav>
 
@@ -740,10 +714,6 @@ export default function FeedPage() {
                 </div>
                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Feed</div>
               </div>
-            </div>
-
-            <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-              LinkUp v1.0 • GTU Sem 5 WAD & ADBMS
             </div>
           </div>
 

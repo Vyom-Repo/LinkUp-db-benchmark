@@ -248,34 +248,6 @@ export default function ExplorePage() {
                 <Compass size={17} />
                 <span>Explore</span>
               </button>
-
-              <button 
-                onClick={() => {
-                  searchInputRef.current?.focus();
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.6rem 0.75rem',
-                  borderRadius: '8px',
-                  backgroundColor: 'transparent',
-                  color: 'var(--text-secondary)',
-                  fontWeight: 600,
-                  fontSize: '0.875rem',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  width: '100%',
-                  transition: 'background-color 0.15s ease'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F2EFE9'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                <Search size={17} />
-                <span>Search</span>
-              </button>
             </nav>
 
             <div style={{ height: '1px', backgroundColor: 'var(--border-color)', margin: '0.85rem 0' }} />
@@ -755,19 +727,6 @@ export default function ExplorePage() {
               </div>
             </div>
           )}
-
-          {/* LinkUp Sem 5 Badge */}
-          <div style={{
-            backgroundColor: '#FAF8F4',
-            border: '1px solid var(--border-color)',
-            borderRadius: '12px',
-            padding: '0.85rem',
-            textAlign: 'center',
-            fontSize: '0.75rem',
-            color: 'var(--text-muted)'
-          }}>
-            LinkUp Explore • ADBMS & WAD Workloads
-          </div>
 
         </aside>
 
