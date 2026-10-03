@@ -19,26 +19,9 @@ async function getFeed(req, res) {
     if (activeEngine === 'MONGODB') {
       const mongoDb = getMongoDb();
 
-      // 1. Fetch user's own recently created posts (last 2 hours) so they never vanish
-      const recentMyPosts = currentUserId ? await mongoDb.collection('posts').aggregate([
-        { $match: { authorId: currentUserId, createdAt: { $gte: new Date(Date.now() - 2 * 3600000) } } },
-        { $sort: { createdAt: -1 } },
-        { $limit: 5 },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'authorId',
-            foreignField: '_id',
-            as: 'author'
-          }
-        },
-        { $unwind: { path: '$author', preserveNullAndEmptyArrays: true } }
-      ]).toArray() : [];
-
-      // 2. Fetch fresh randomized sample of community discussions on refresh
-      const sampleSize = Math.max(limit - recentMyPosts.length, 5);
+      // Sample community discussions directly across all authors
       const communityPosts = await mongoDb.collection('posts').aggregate([
-        { $sample: { size: sampleSize } },
+        { $sample: { size: limit } },
         {
           $lookup: {
             from: 'users',
@@ -50,17 +33,7 @@ async function getFeed(req, res) {
         { $unwind: { path: '$author', preserveNullAndEmptyArrays: true } }
       ]).toArray();
 
-      // Combine user's recent posts with randomized community posts
-      const combined = [...recentMyPosts];
-      const seenIds = new Set(recentMyPosts.map((p) => p._id.toString()));
-      for (const cp of communityPosts) {
-        const idStr = cp._id.toString();
-        if (!seenIds.has(idStr)) {
-          combined.push(cp);
-          seenIds.add(idStr);
-        }
-        if (combined.length >= limit) break;
-      }
+      const combined = communityPosts;
 
       // Check liked status in MongoDB
       const postIds = combined.map((p) => p._id.toString());
@@ -118,9 +91,7 @@ async function getFeed(req, res) {
         ) AS is_liked_by_me
       FROM posts p
       JOIN users u ON u.id = p.author_id
-      ORDER BY 
-        CASE WHEN p.author_id = $1 AND p.created_at > (NOW() - INTERVAL '2 hours') THEN 0 ELSE 1 END ASC,
-        hashtext(p.id::text || $4) DESC
+      ORDER BY hashtext(p.id::text || $4) DESC
       LIMIT $2 OFFSET $3;
     `;
 
