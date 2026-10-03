@@ -42,7 +42,14 @@ export default function AdminLoginPage() {
       const data = await res.json();
 
       if (!data.success) {
-        setErrorMsg(data.error?.message || 'Authentication failed. Invalid administrator credentials.');
+        const msg = data.error?.message || '';
+        if (msg.toLowerCase().includes('password')) {
+          setErrorMsg('Incorrect password.');
+        } else if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('user')) {
+          setErrorMsg('Incorrect administrator ID or account not found.');
+        } else {
+          setErrorMsg(msg || 'Incorrect password.');
+        }
         setSubmitting(false);
         return;
       }
@@ -50,12 +57,12 @@ export default function AdminLoginPage() {
       // Verify that user possesses platform administrator privileges
       const loggedUser = data.data.user;
       if (!loggedUser.isAdmin) {
-        setErrorMsg('Access Denied: Account does not possess administrator clearance.');
+        setErrorMsg('Access denied: Account does not have administrator privileges.');
         setSubmitting(false);
         return;
       }
 
-      // Store authenticated admin session
+      // Store authenticated admin session & navigate to dashboard
       login(loggedUser, data.data.token);
       navigate('/admin', { replace: true });
     } catch (err) {
