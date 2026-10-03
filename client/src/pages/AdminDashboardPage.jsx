@@ -18,6 +18,94 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
+const architectureStudyData = {
+  sql: {
+    normal: {
+      lat: '24 ms', subLat: '3 Table JOINs',
+      fet: '3 Trips', subFet: 'Random Index Seek',
+      thr: '1,400/s', subThr: 'Standard Pool',
+      lck: 'Low', subLck: 'Row-level Lock',
+      title: 'SQL Normal Load (Feed Generation)',
+      desc: 'Fetching user feed requires execution of JOIN operations between <strong>users</strong>, <strong>posts</strong>, and <strong>comments</strong>. Relational normalization prevents data duplication but requires multiple random index lookups per query.'
+    },
+    read: {
+      lat: '145 ms', subLat: 'CPU Bottleneck',
+      fet: '3 Trips', subFet: 'Heavy I/O Queue',
+      thr: '350/s', subThr: 'Connection Drop',
+      lck: 'Medium', subLck: 'Read Contention',
+      title: 'SQL High Reads (Feed Burst Bottleneck)',
+      desc: 'Under high read concurrency, resolving complex JOINs across 3 normalized tables consumes massive CPU and RAM. Query execution slows down, forming a bottleneck as the database struggles to stitch normalized data together for thousands of users at once.'
+    },
+    write: {
+      lat: '65 ms', subLat: 'Single INSERT',
+      fet: '1 Trip', subFet: 'Index Update Cost',
+      thr: '800/s', subThr: 'Write Queueing',
+      lck: 'High', subLck: 'B-Tree Rebalancing',
+      title: 'SQL High Writes (Viral Post Activity)',
+      desc: 'Writing comments creates high row-level insertion locks on the comments table. The database must constantly rebalance its B-Tree foreign key indexes to maintain relational integrity, causing noticeable write lag.'
+    }
+  },
+  mongo: {
+    normal: {
+      lat: '12 ms', subLat: 'O(1) Document Fetch',
+      fet: '1 Trip', subFet: 'Direct Memory Load',
+      thr: '3,200/s', subThr: 'High Concurrency',
+      lck: 'Low', subLck: 'Document-level',
+      title: 'MongoDB Normal Load (Feed Generation)',
+      desc: 'Using the Subset Pattern, the top comments are embedded directly inside the <strong>posts</strong> document. Fetching the feed requires zero JOINs and retrieves all necessary data in a single, blazing-fast network trip.'
+    },
+    read: {
+      lat: '18 ms', subLat: 'Cache Hit Ratio High',
+      fet: '1 Trip', subFet: 'RAM Accelerated',
+      thr: '2,800/s', subThr: 'Scales Linearly',
+      lck: 'Low', subLck: 'Non-blocking Reads',
+      title: 'MongoDB High Reads (Feed Burst Efficiency)',
+      desc: 'Because the data is pre-joined (embedded), MongoDB scales exceptionally well under heavy read loads. It bypasses CPU-heavy relation mapping and simply serves the embedded BSON documents straight from RAM.'
+    },
+    write: {
+      lat: '95 ms', subLat: 'Array Append Cost',
+      fet: '2 Trips', subFet: 'Embed + Overflow',
+      thr: '520/s', subThr: 'Document Size Limit',
+      lck: 'Critical', subLck: 'Document-level Lock',
+      title: 'MongoDB High Writes (Viral Post Bottleneck)',
+      desc: 'Thousands of concurrent comments on a single viral post force MongoDB to continuously lock and rewrite the same massive post document to append arrays. It risks hitting the 16MB document limit, forcing costly overflow redirects into the separate comments collection.'
+    }
+  }
+};
+
+const flowDynamics = {
+  normal: {
+    wireColor: '#8e918f',
+    particleColor: '#a8c7fa',
+    coreDur: '1.2s',
+    sql1Dur: '1.4s',
+    sql2Dur: '1.2s',
+    sql3Dur: '1.5s',
+    mongo1Dur: '1.2s',
+    mongo2Dur: '1.4s'
+  },
+  read: {
+    wireColor: '#00e5ff',
+    particleColor: '#00e5ff',
+    coreDur: '0.4s',
+    sql1Dur: '0.5s',
+    sql2Dur: '0.4s',
+    sql3Dur: '0.5s',
+    mongo1Dur: '0.4s',
+    mongo2Dur: '0.5s'
+  },
+  write: {
+    wireColor: '#ff5252',
+    particleColor: '#ff5252',
+    coreDur: '0.8s',
+    sql1Dur: '0.9s',
+    sql2Dur: '0.8s',
+    sql3Dur: '0.8s',
+    mongo1Dur: '0.8s',
+    mongo2Dur: '0.9s'
+  }
+};
+
 export default function AdminDashboardPage() {
   const { user, token, logout } = useAuth();
   const navigate = useNavigate();
@@ -110,6 +198,28 @@ export default function AdminDashboardPage() {
   const [comparing, setComparing] = useState(false);
   const [comparisonError, setComparisonError] = useState(null);
   const [showWorkloadDetails, setShowWorkloadDetails] = useState(false);
+
+  // Interactive Architectural Simulation State
+  const [diagramDb, setDiagramDb] = useState('sql');
+  const [trafficPattern, setTrafficPattern] = useState('normal'); // 'normal' | 'read' | 'write'
+  const [metricPulse, setMetricPulse] = useState(false);
+
+  // Automatically sync diagram default schema view when active database engine changes
+  useEffect(() => {
+    setDiagramDb(activeEngine === 'POSTGRES' ? 'sql' : 'mongo');
+  }, [activeEngine]);
+
+  const handleSetTraffic = (pattern) => {
+    setTrafficPattern(pattern);
+    setMetricPulse(true);
+    setTimeout(() => setMetricPulse(false), 500);
+  };
+
+  const handleSetDb = (db) => {
+    setDiagramDb(db);
+    setMetricPulse(true);
+    setTimeout(() => setMetricPulse(false), 500);
+  };
 
   // Fetch Live Telemetry Data
   const fetchMetrics = async (isManual = false) => {
@@ -902,7 +1012,7 @@ export default function AdminDashboardPage() {
         </section>
 
         {/* ======================================================== */}
-        {/* 3. LIVE PERFORMANCE GRAPH                                */}
+        {/* 3. INTERACTIVE ARCHITECTURAL STUDY                       */}
         {/* ======================================================== */}
         <section style={{
           backgroundColor: '#FFFFFF',
@@ -911,128 +1021,580 @@ export default function AdminDashboardPage() {
           padding: '2rem',
           boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.04)'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.02em' }}>
-                  LIVE PERFORMANCE GRAPH
-                </h2>
-                <span style={{
-                  fontSize: '0.7rem',
-                  fontWeight: 800,
-                  backgroundColor: '#F1F5F9',
-                  color: '#475569',
-                  padding: '0.2rem 0.6rem',
-                  borderRadius: '999px',
-                  border: '1px solid #CBD5E1'
-                }}>
-                  Response Time / Throughput / Requests
-                </span>
-              </div>
-              <p style={{ fontSize: '0.8rem', color: '#64748B', margin: '0.2rem 0 0 0' }}>
-                Real-time operational latency timeline and throughput trend for {activeEngineName}
-              </p>
-            </div>
+          {(() => {
+            const currentMetrics = architectureStudyData[diagramDb][trafficPattern];
+            const currentFlow = flowDynamics[trafficPattern];
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: activeEngine === 'POSTGRES' ? '#0284C7' : '#059669' }} />
-                <span style={{ fontWeight: 700, color: '#0F172A' }}>Total API Latency (ms)</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#F59E0B' }} />
-                <span style={{ fontWeight: 700, color: '#0F172A' }}>DB Execution (ms)</span>
-              </div>
-            </div>
-          </div>
+            return (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                      <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.02em' }}>
+                        INTERACTIVE ARCHITECTURAL STUDY
+                      </h2>
+                      <span style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 800,
+                        backgroundColor: '#F1F5F9',
+                        color: '#475569',
+                        padding: '0.2rem 0.6rem',
+                        borderRadius: '999px',
+                        border: '1px solid #CBD5E1'
+                      }}>
+                        Live Workload Flow Simulation
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '0.8rem', color: '#64748B', margin: '0.2rem 0 0 0' }}>
+                      Visualizing query execution pathways, data trips, embedded documents, and lock contention under simulated traffic loads
+                    </p>
+                  </div>
 
-          {/* Performance Graph Canvas Container */}
-          <div style={{
-            backgroundColor: '#FAF8F4',
-            border: '1px solid #E2E8F0',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            position: 'relative',
-            minHeight: '220px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between'
-          }}>
-            {activeStream.length > 0 ? (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.75rem', color: '#64748B' }}>
-                  <span>Telemetry sequence (last {activeStream.length} requests)</span>
-                  <span>Active Engine: <strong style={{ color: activeEngine === 'POSTGRES' ? '#0284C7' : '#059669' }}>{activeEngineName}</strong></span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.75rem' }}>
+                    <span style={{
+                      padding: '0.35rem 0.85rem',
+                      borderRadius: '999px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      backgroundColor: activeEngine === 'POSTGRES' ? '#EFF6FF' : '#ECFDF5',
+                      color: activeEngine === 'POSTGRES' ? '#1D4ED8' : '#047857',
+                      border: activeEngine === 'POSTGRES' ? '1px solid #BFDBFE' : '1px solid #A7F3D0',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem'
+                    }}>
+                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: activeEngine === 'POSTGRES' ? '#2563EB' : '#10B981' }} />
+                      Active Engine: {activeEngineName}
+                    </span>
+                  </div>
                 </div>
-                {/* SVG Visualizer */}
-                <div style={{ height: '140px', width: '100%', position: 'relative' }}>
-                  <svg style={{ width: '100%', height: '100%', overflow: 'visible' }}>
-                    <defs>
-                      <linearGradient id="latencyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor={activeEngine === 'POSTGRES' ? '#0284C7' : '#059669'} stopOpacity="0.22" />
-                        <stop offset="100%" stopColor={activeEngine === 'POSTGRES' ? '#0284C7' : '#059669'} stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-                    <line x1="0" y1="20" x2="100%" y2="20" stroke="#E2E8F0" strokeDasharray="4 4" />
-                    <line x1="0" y1="70" x2="100%" y2="70" stroke="#E2E8F0" strokeDasharray="4 4" />
-                    <line x1="0" y1="120" x2="100%" y2="120" stroke="#E2E8F0" strokeDasharray="4 4" />
-                    {(() => {
-                      const points = activeStream.slice(0, 15).reverse();
-                      const maxVal = Math.max(...points.map(p => p.totalResponseMs || p.latencyMs || 10), 50);
-                      const coords = points.map((p, idx) => {
-                        const x = (idx / Math.max(points.length - 1, 1)) * 96 + 2;
-                        const val = p.totalResponseMs || p.latencyMs || 10;
-                        const y = 130 - (val / maxVal) * 110;
-                        return { x, y, val, dbMs: p.dbExecutionMs, time: p.time };
-                      });
-                      const pathD = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x}% ${c.y}`).join(' ');
-                      const areaD = `${pathD} L ${coords[coords.length - 1]?.x}% 140 L ${coords[0]?.x}% 140 Z`;
 
-                      return (
-                        <g>
-                          <path d={areaD} fill="url(#latencyGradient)" />
-                          <path d={pathD} fill="none" stroke={activeEngine === 'POSTGRES' ? '#0284C7' : '#059669'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                          {coords.map((c, idx) => (
-                            <circle key={idx} cx={`${c.x}%`} cy={c.y} r="4" fill="#FFFFFF" stroke={activeEngine === 'POSTGRES' ? '#0284C7' : '#059669'} strokeWidth="2">
-                              <title>{`${c.val} ms total (${c.dbMs ? `${c.dbMs}ms DB` : ''}) at ${c.time}`}</title>
-                            </circle>
-                          ))}
-                        </g>
-                      );
-                    })()}
-                  </svg>
-                </div>
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '2.5rem 1rem' }}>
+                {/* Embedded Architectural Simulator */}
                 <div style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #E2E8F0',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--primary)',
-                  marginBottom: '0.65rem'
+                  backgroundColor: '#131314',
+                  color: '#e3e3e3',
+                  borderRadius: '16px',
+                  border: '1px solid #2A2A2D',
+                  padding: '24px 20px',
+                  boxShadow: '0 8px 30px rgba(0, 0, 0, 0.35)'
                 }}>
-                  <BarChart2 size={20} />
-                </div>
-                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0F172A' }}>
-                  [ PERFORMANCE GRAPH ]
-                </div>
-                <div style={{ fontSize: '0.785rem', color: '#64748B', maxWidth: '420px', margin: '0.35rem auto', lineHeight: 1.5 }}>
-                  Response Time / Throughput / Requests timeline. As live application requests arrive on {activeEngineName}, points render in real-time.
-                </div>
-              </div>
-            )}
+                  <style>{`
+                    @keyframes pulse-metric {
+                      0% { border-color: #444746; }
+                      50% { border-color: #a8c7fa; }
+                      100% { border-color: #444746; }
+                    }
+                    .pulse-metric-anim {
+                      animation: pulse-metric 0.6s ease;
+                    }
+                    @keyframes alertGlow {
+                      0% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.6); border-color: #ff5252; }
+                      50% { box-shadow: 0 0 16px 4px rgba(255, 82, 82, 0.85); border-color: #ff5252; }
+                      100% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.6); border-color: #ff5252; }
+                    }
+                    .warning-glow {
+                      animation: alertGlow 1.2s infinite ease-in-out !important;
+                      border-color: #ff5252 !important;
+                    }
+                  `}</style>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #E2E8F0', paddingTop: '0.75rem', marginTop: '0.5rem', fontSize: '0.725rem', color: '#94A3B8' }}>
-              <span>Live Telemetry Grid (ms vs requests)</span>
-              <span>[ Ready for custom graph code ]</span>
-            </div>
-          </div>
+                  <div style={{ width: '100%', maxWidth: '850px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* Top Schema Toggles */}
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleSetDb('sql')}
+                        style={{
+                          background: diagramDb === 'sql' ? 'rgba(168, 199, 250, 0.14)' : 'transparent',
+                          color: diagramDb === 'sql' ? '#a8c7fa' : '#c4c7c5',
+                          border: diagramDb === 'sql' ? '1px solid #a8c7fa' : '1px solid transparent',
+                          padding: '8px 18px',
+                          borderRadius: '20px',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          transition: 'all 0.2s',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.4rem'
+                        }}
+                      >
+                        SQL Normalized (3 Tables)
+                        {activeEngine === 'POSTGRES' && (
+                          <span style={{ fontSize: '10px', backgroundColor: 'rgba(168, 199, 250, 0.25)', padding: '1px 6px', borderRadius: '10px' }}>ACTIVE</span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSetDb('mongo')}
+                        style={{
+                          background: diagramDb === 'mongo' ? 'rgba(52, 211, 153, 0.14)' : 'transparent',
+                          color: diagramDb === 'mongo' ? '#34d399' : '#c4c7c5',
+                          border: diagramDb === 'mongo' ? '1px solid #34d399' : '1px solid transparent',
+                          padding: '8px 18px',
+                          borderRadius: '20px',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          transition: 'all 0.2s',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.4rem'
+                        }}
+                      >
+                        MongoDB Embedded Document
+                        {activeEngine === 'MONGODB' && (
+                          <span style={{ fontSize: '10px', backgroundColor: 'rgba(52, 211, 153, 0.25)', padding: '1px 6px', borderRadius: '10px' }}>ACTIVE</span>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Traffic Pattern Selection */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.6px', color: '#8e918f', fontWeight: 700 }}>
+                        Simulated Traffic Pattern
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        gap: '8px',
+                        backgroundColor: '#1e1e1f',
+                        padding: '6px',
+                        borderRadius: '24px',
+                        border: '1px solid #444746',
+                        flexWrap: 'wrap',
+                        justifyContent: 'center'
+                      }}>
+                        <button
+                          type="button"
+                          onClick={() => handleSetTraffic('normal')}
+                          style={{
+                            background: trafficPattern === 'normal' ? 'rgba(168, 199, 250, 0.15)' : 'transparent',
+                            color: trafficPattern === 'normal' ? '#a8c7fa' : '#c4c7c5',
+                            border: '1px solid transparent',
+                            padding: '6px 16px',
+                            borderRadius: '20px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          Normal Load (Standard Feed)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetTraffic('read')}
+                          style={{
+                            background: trafficPattern === 'read' ? 'rgba(0, 229, 255, 0.18)' : 'transparent',
+                            color: trafficPattern === 'read' ? '#00e5ff' : '#c4c7c5',
+                            border: '1px solid transparent',
+                            padding: '6px 16px',
+                            borderRadius: '20px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          High Reads (Feed Burst)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetTraffic('write')}
+                          style={{
+                            background: trafficPattern === 'write' ? 'rgba(255, 82, 82, 0.18)' : 'transparent',
+                            color: trafficPattern === 'write' ? '#ff5252' : '#c4c7c5',
+                            border: '1px solid transparent',
+                            padding: '6px 16px',
+                            borderRadius: '20px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          High Writes (Viral Activity)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Metrics Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px', marginTop: '4px' }}>
+                      <div className={`metric-card ${metricPulse ? 'pulse-metric-anim' : ''}`} style={{
+                        backgroundColor: '#1e1e1f',
+                        border: '1px solid #444746',
+                        borderRadius: '12px',
+                        padding: '14px 16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                        transition: 'border-color 0.3s ease'
+                      }}>
+                        <div style={{ fontSize: '11px', color: '#8e918f', textTransform: 'uppercase', fontWeight: 700 }}>Avg Latency</div>
+                        <div style={{ fontSize: '18px', color: '#e3e3e3', fontWeight: 700 }}>{currentMetrics.lat}</div>
+                        <div style={{ fontSize: '12px', color: '#c4c7c5' }}>{currentMetrics.subLat}</div>
+                      </div>
+                      <div className={`metric-card ${metricPulse ? 'pulse-metric-anim' : ''}`} style={{
+                        backgroundColor: '#1e1e1f',
+                        border: '1px solid #444746',
+                        borderRadius: '12px',
+                        padding: '14px 16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                        transition: 'border-color 0.3s ease'
+                      }}>
+                        <div style={{ fontSize: '11px', color: '#8e918f', textTransform: 'uppercase', fontWeight: 700 }}>I/O Fetch Cost</div>
+                        <div style={{ fontSize: '18px', color: '#e3e3e3', fontWeight: 700 }}>{currentMetrics.fet}</div>
+                        <div style={{ fontSize: '12px', color: '#c4c7c5' }}>{currentMetrics.subFet}</div>
+                      </div>
+                      <div className={`metric-card ${metricPulse ? 'pulse-metric-anim' : ''}`} style={{
+                        backgroundColor: '#1e1e1f',
+                        border: '1px solid #444746',
+                        borderRadius: '12px',
+                        padding: '14px 16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                        transition: 'border-color 0.3s ease'
+                      }}>
+                        <div style={{ fontSize: '11px', color: '#8e918f', textTransform: 'uppercase', fontWeight: 700 }}>Max Throughput</div>
+                        <div style={{ fontSize: '18px', color: '#e3e3e3', fontWeight: 700 }}>{currentMetrics.thr}</div>
+                        <div style={{ fontSize: '12px', color: '#c4c7c5' }}>{currentMetrics.subThr}</div>
+                      </div>
+                      <div className={`metric-card ${metricPulse ? 'pulse-metric-anim' : ''}`} style={{
+                        backgroundColor: '#1e1e1f',
+                        border: '1px solid #444746',
+                        borderRadius: '12px',
+                        padding: '14px 16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                        transition: 'border-color 0.3s ease'
+                      }}>
+                        <div style={{ fontSize: '11px', color: '#8e918f', textTransform: 'uppercase', fontWeight: 700 }}>Lock / Friction</div>
+                        <div style={{ fontSize: '18px', color: trafficPattern === 'write' ? '#ff5252' : '#e3e3e3', fontWeight: 700 }}>{currentMetrics.lck}</div>
+                        <div style={{ fontSize: '12px', color: '#c4c7c5' }}>{currentMetrics.subLck}</div>
+                      </div>
+                    </div>
+
+                    {/* Node Diagram Engine */}
+                    <div style={{
+                      position: 'relative',
+                      height: '380px',
+                      width: '100%',
+                      backgroundColor: '#181819',
+                      borderRadius: '16px',
+                      border: '1px solid #333536',
+                      overflow: 'hidden',
+                      marginTop: '6px'
+                    }}>
+                      <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, pointerEvents: 'none' }} viewBox="0 0 850 380">
+                        <defs>
+                          <marker id="arch-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 1 L 10 5 L 0 9 z" fill={currentFlow.wireColor} />
+                          </marker>
+                        </defs>
+
+                        {/* Global Core Line (Client to Engine) */}
+                        <path
+                          d="M 210 190 L 320 190"
+                          stroke={currentFlow.wireColor}
+                          strokeWidth="1.5"
+                          strokeDasharray="4 4"
+                          fill="none"
+                          markerEnd="url(#arch-arrow)"
+                          style={{ transition: 'stroke 0.4s ease' }}
+                        />
+                        <circle r="4" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 5px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
+                          <animateMotion key={`core-${trafficPattern}-${diagramDb}`} dur={currentFlow.coreDur} repeatCount="indefinite" path="M 210 190 L 320 190" />
+                        </circle>
+
+                        {/* SQL Paths */}
+                        {diagramDb === 'sql' ? (
+                          <g>
+                            {/* Engine to Users */}
+                            <path
+                              d="M 455 180 C 510 180, 510 70, 570 70"
+                              stroke={currentFlow.wireColor}
+                              strokeWidth="1.5"
+                              strokeDasharray="4 4"
+                              fill="none"
+                              markerEnd="url(#arch-arrow)"
+                              style={{ transition: 'stroke 0.4s ease' }}
+                            />
+                            <circle r="3.5" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 5px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
+                              <animateMotion key={`sql-1-${trafficPattern}`} dur={currentFlow.sql1Dur} repeatCount="indefinite" path="M 455 180 C 510 180, 510 70, 570 70" />
+                            </circle>
+
+                            {/* Engine to Posts */}
+                            <path
+                              d="M 455 190 L 570 190"
+                              stroke={currentFlow.wireColor}
+                              strokeWidth="1.5"
+                              strokeDasharray="4 4"
+                              fill="none"
+                              markerEnd="url(#arch-arrow)"
+                              style={{ transition: 'stroke 0.4s ease' }}
+                            />
+                            <circle r="3.5" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 5px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
+                              <animateMotion key={`sql-2-${trafficPattern}`} dur={currentFlow.sql2Dur} repeatCount="indefinite" path="M 455 190 L 570 190" />
+                            </circle>
+
+                            {/* Engine to Comments */}
+                            <path
+                              d="M 455 200 C 510 200, 510 310, 570 310"
+                              stroke={currentFlow.wireColor}
+                              strokeWidth="1.5"
+                              strokeDasharray="4 4"
+                              fill="none"
+                              markerEnd="url(#arch-arrow)"
+                              style={{ transition: 'stroke 0.4s ease' }}
+                            />
+                            <circle r="3.5" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 5px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
+                              <animateMotion key={`sql-3-${trafficPattern}`} dur={currentFlow.sql3Dur} repeatCount="indefinite" path="M 455 200 C 510 200, 510 310, 570 310" />
+                            </circle>
+                          </g>
+                        ) : (
+                          /* MongoDB Paths */
+                          <g>
+                            {/* Engine to Posts Collection */}
+                            <path
+                              d="M 455 190 C 510 190, 510 130, 570 130"
+                              stroke={currentFlow.wireColor}
+                              strokeWidth="1.5"
+                              strokeDasharray="4 4"
+                              fill="none"
+                              markerEnd="url(#arch-arrow)"
+                              style={{ transition: 'stroke 0.4s ease' }}
+                            />
+                            <circle r="3.5" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 5px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
+                              <animateMotion key={`mongo-1-${trafficPattern}`} dur={currentFlow.mongo1Dur} repeatCount="indefinite" path="M 455 190 C 510 190, 510 130, 570 130" />
+                            </circle>
+
+                            {/* Engine to Comments Collection (Overflow) */}
+                            <path
+                              d="M 455 190 C 510 190, 510 250, 570 250"
+                              stroke={currentFlow.wireColor}
+                              strokeWidth="1.5"
+                              strokeDasharray="4 4"
+                              fill="none"
+                              markerEnd="url(#arch-arrow)"
+                              style={{ transition: 'stroke 0.4s ease' }}
+                            />
+                            <circle r="3.5" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 5px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
+                              <animateMotion key={`mongo-2-${trafficPattern}`} dur={currentFlow.mongo2Dur} repeatCount="indefinite" path="M 455 190 C 510 190, 510 250, 570 250" />
+                            </circle>
+                          </g>
+                        )}
+                      </svg>
+
+                      {/* Static Client Node */}
+                      <div style={{
+                        position: 'absolute',
+                        left: '14%',
+                        top: '50%',
+                        zIndex: 2,
+                        padding: '12px 20px',
+                        borderRadius: '30px',
+                        textAlign: 'center',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        fontSize: '13px',
+                        lineHeight: 1.4,
+                        transform: 'translate(-50%, -50%)',
+                        backgroundColor: '#131314',
+                        border: '1px solid #444746',
+                        color: '#e3e3e3',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)'
+                      }}>
+                        <span style={{ fontWeight: 700 }}>Client / App</span>
+                        <div style={{ fontSize: '11px', color: '#8e918f', fontFamily: 'monospace', marginTop: '3px' }}>REST / GraphQL</div>
+                      </div>
+
+                      <div style={{
+                        position: 'absolute',
+                        left: '31%',
+                        top: '48%',
+                        fontSize: '11px',
+                        color: '#c4c7c5',
+                        backgroundColor: '#131314',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        border: '1px solid #333',
+                        zIndex: 3,
+                        transform: 'translate(-50%, -50%)'
+                      }}>
+                        Query
+                      </div>
+
+                      {/* Dynamic Engine Node */}
+                      <div style={{
+                        position: 'absolute',
+                        left: '45%',
+                        top: '50%',
+                        zIndex: 2,
+                        padding: '12px 22px',
+                        borderRadius: '30px',
+                        textAlign: 'center',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        fontSize: '13px',
+                        lineHeight: 1.4,
+                        transform: 'translate(-50%, -50%)',
+                        backgroundColor: diagramDb === 'sql' ? '#0b57d0' : '#0f9d58',
+                        color: '#ffffff',
+                        boxShadow: diagramDb === 'sql' ? '0 0 16px rgba(11, 87, 208, 0.45)' : '0 0 16px rgba(15, 157, 88, 0.45)',
+                        transition: 'background-color 0.3s ease, box-shadow 0.3s ease'
+                      }}>
+                        <span style={{ fontWeight: 700 }}>{diagramDb === 'sql' ? 'SQL Engine' : 'MongoDB Engine'}</span>
+                        <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.75)', marginTop: '3px' }}>
+                          {diagramDb === 'sql' ? 'Query & JOINs' : 'Document Fetch'}
+                        </div>
+                      </div>
+
+                      {/* SQL Specific Nodes */}
+                      {diagramDb === 'sql' ? (
+                        <div>
+                          <div style={{ position: 'absolute', left: '60%', top: '30%', fontSize: '11px', color: '#c4c7c5', backgroundColor: '#131314', padding: '2px 6px', borderRadius: '4px', border: '1px solid #333', zIndex: 3, transform: 'translate(-50%, -50%)' }}>
+                            JOIN Users
+                          </div>
+                          <div style={{ position: 'absolute', left: '60%', top: '50%', fontSize: '11px', color: '#c4c7c5', backgroundColor: '#131314', padding: '2px 6px', borderRadius: '4px', border: '1px solid #333', zIndex: 3, transform: 'translate(-50%, -50%)' }}>
+                            SELECT Posts
+                          </div>
+                          <div style={{ position: 'absolute', left: '60%', top: '70%', fontSize: '11px', color: '#c4c7c5', backgroundColor: '#131314', padding: '2px 6px', borderRadius: '4px', border: '1px solid #333', zIndex: 3, transform: 'translate(-50%, -50%)' }}>
+                            JOIN Comments
+                          </div>
+
+                          <div style={{
+                            position: 'absolute',
+                            left: '80%',
+                            top: '18%',
+                            zIndex: 2,
+                            padding: '10px 18px',
+                            borderRadius: '24px',
+                            textAlign: 'center',
+                            fontSize: '12px',
+                            transform: 'translate(-50%, -50%)',
+                            backgroundColor: '#131314',
+                            border: '1px solid #444746',
+                            color: '#e3e3e3'
+                          }}>
+                            <span style={{ fontWeight: 700 }}>Users Table</span>
+                            <div style={{ fontSize: '11px', color: '#8e918f', fontFamily: 'monospace', marginTop: '3px' }}>id, username, avatar_url</div>
+                          </div>
+
+                          <div style={{
+                            position: 'absolute',
+                            left: '80%',
+                            top: '50%',
+                            zIndex: 2,
+                            padding: '10px 18px',
+                            borderRadius: '24px',
+                            textAlign: 'center',
+                            fontSize: '12px',
+                            transform: 'translate(-50%, -50%)',
+                            backgroundColor: '#131314',
+                            border: '1px solid #444746',
+                            color: '#e3e3e3'
+                          }}>
+                            <span style={{ fontWeight: 700 }}>Posts Table</span>
+                            <div style={{ fontSize: '11px', color: '#8e918f', fontFamily: 'monospace', marginTop: '3px' }}>id, author_id, content, created_at</div>
+                          </div>
+
+                          <div className={trafficPattern === 'write' ? 'warning-glow' : ''} style={{
+                            position: 'absolute',
+                            left: '80%',
+                            top: '82%',
+                            zIndex: 2,
+                            padding: '10px 18px',
+                            borderRadius: '24px',
+                            textAlign: 'center',
+                            fontSize: '12px',
+                            transform: 'translate(-50%, -50%)',
+                            backgroundColor: '#131314',
+                            border: '1px solid #444746',
+                            color: '#e3e3e3',
+                            transition: 'all 0.3s ease'
+                          }}>
+                            <span style={{ fontWeight: 700 }}>Comments Table</span>
+                            <div style={{ fontSize: '11px', color: '#8e918f', fontFamily: 'monospace', marginTop: '3px' }}>id, post_id, author_id, content</div>
+                          </div>
+                        </div>
+                      ) : (
+                        /* MongoDB Specific Nodes */
+                        <div>
+                          <div style={{ position: 'absolute', left: '60%', top: '40%', fontSize: '11px', color: '#c4c7c5', backgroundColor: '#131314', padding: '2px 6px', borderRadius: '4px', border: '1px solid #333', zIndex: 3, transform: 'translate(-50%, -50%)' }}>
+                            Primary Fetch
+                          </div>
+                          <div style={{ position: 'absolute', left: '60%', top: '60%', fontSize: '11px', color: '#c4c7c5', backgroundColor: '#131314', padding: '2px 6px', borderRadius: '4px', border: '1px solid #333', zIndex: 3, transform: 'translate(-50%, -50%)' }}>
+                            Overflow Fetch
+                          </div>
+
+                          <div className={trafficPattern === 'write' ? 'warning-glow' : ''} style={{
+                            position: 'absolute',
+                            left: '80%',
+                            top: '34%',
+                            zIndex: 2,
+                            padding: '10px 18px',
+                            borderRadius: '24px',
+                            textAlign: 'center',
+                            fontSize: '12px',
+                            transform: 'translate(-50%, -50%)',
+                            backgroundColor: '#131314',
+                            border: '1px solid #444746',
+                            color: '#e3e3e3',
+                            transition: 'all 0.3s ease'
+                          }}>
+                            <span style={{ fontWeight: 700 }}>Posts Collection</span>
+                            <div style={{ fontSize: '11px', color: '#8e918f', fontFamily: 'monospace', marginTop: '3px' }}>_id, content, comments:[{'{'}{'}'}]</div>
+                          </div>
+
+                          <div style={{
+                            position: 'absolute',
+                            left: '80%',
+                            top: '66%',
+                            zIndex: 2,
+                            padding: '10px 18px',
+                            borderRadius: '24px',
+                            textAlign: 'center',
+                            fontSize: '12px',
+                            transform: 'translate(-50%, -50%)',
+                            backgroundColor: '#131314',
+                            border: '1px solid #444746',
+                            color: '#e3e3e3'
+                          }}>
+                            <span style={{ fontWeight: 700 }}>Comments Collection</span>
+                            <div style={{ fontSize: '11px', color: '#8e918f', fontFamily: 'monospace', marginTop: '3px' }}>_id, postId, content</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer Description */}
+                    <div style={{
+                      borderLeft: `3px solid ${diagramDb === 'sql' ? '#a8c7fa' : '#34d399'}`,
+                      paddingLeft: '16px',
+                      marginTop: '6px',
+                      transition: 'border-color 0.3s ease'
+                    }}>
+                      <div style={{ fontSize: '14px', color: '#e3e3e3', marginBottom: '6px', fontWeight: 700 }}>
+                        {currentMetrics.title}
+                      </div>
+                      <div
+                        style={{ fontSize: '13px', color: '#c4c7c5', lineHeight: 1.55, maxWidth: '90%' }}
+                        dangerouslySetInnerHTML={{ __html: currentMetrics.desc }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </section>
 
         {/* ======================================================== */}
