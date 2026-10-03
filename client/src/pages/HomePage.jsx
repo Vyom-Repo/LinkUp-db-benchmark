@@ -18,15 +18,12 @@ export default function HomePage() {
         {/* Centered AI Monogram Logo */}
         <div style={{ marginBottom: '2rem' }}>
           <img 
-            src="/logo.jpg" 
+            src="/logo.svg" 
             alt="LinkUp Logo" 
             style={{
-              width: '105px',
-              height: '105px',
-              borderRadius: '22px',
-              objectFit: 'cover',
-              boxShadow: '0 16px 36px -6px rgba(44, 39, 32, 0.14), 0 4px 12px -2px rgba(44, 39, 32, 0.06)',
-              border: '1px solid var(--border-color)',
+              width: '90px',
+              height: '90px',
+              objectFit: 'contain',
               margin: '0 auto',
               display: 'block'
             }}

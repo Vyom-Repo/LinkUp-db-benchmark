@@ -60,14 +60,12 @@ export default function RegisterPage() {
         {/* Brand Icon */}
         <div style={{ marginBottom: '1.25rem' }}>
           <img 
-            src="/logo.jpg" 
-            alt="Sync Logo" 
+            src="/logo.svg" 
+            alt="LinkUp Logo" 
             style={{
               width: '56px',
               height: '56px',
-              borderRadius: '14px',
-              objectFit: 'cover',
-              boxShadow: '0 4px 14px rgba(44, 39, 32, 0.08)',
+              objectFit: 'contain',
               margin: '0 auto',
               display: 'block'
             }}

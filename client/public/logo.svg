@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="linkGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#E06D53" />
+      <stop offset="100%" stop-color="#F97316" />
+    </linearGradient>
+  </defs>
+  <g transform="rotate(-45 50 50)">
+    <path 
+      d="M 42 68 H 30 C 20.06 68 12 59.94 12 50 C 12 40.06 20.06 32 30 32 H 42" 
+      stroke="#1C1917" 
+      stroke-width="11" 
+      stroke-linecap="round" 
+    />
+    <path 
+      d="M 58 32 H 70 C 79.94 32 88 40.06 88 50 C 88 59.94 79.94 68 70 68 H 58" 
+      stroke="url(#linkGrad)" 
+      stroke-width="11" 
+      stroke-linecap="round" 
+    />
+    <line 
+      x1="33" y1="50" x2="67" y2="50" 
+      stroke="url(#linkGrad)" 
+      stroke-width="11" 
+      stroke-linecap="round" 
+    />
+  </g>
+</svg>

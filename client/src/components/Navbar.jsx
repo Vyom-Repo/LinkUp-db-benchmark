@@ -51,14 +51,12 @@ export default function Navbar() {
             }}
           >
             <img 
-              src="/logo.jpg" 
+              src="/logo.svg" 
               alt="LinkUp Logo" 
               style={{
-                width: '34px',
-                height: '34px',
-                borderRadius: '8px',
-                objectFit: 'cover',
-                boxShadow: '0 2px 6px rgba(44, 39, 32, 0.08)'
+                width: '32px',
+                height: '32px',
+                objectFit: 'contain'
               }} 
             />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
