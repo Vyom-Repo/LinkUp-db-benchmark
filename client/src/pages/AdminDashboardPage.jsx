@@ -290,6 +290,16 @@ export default function AdminDashboardPage() {
                   ({connections.postgres.latencyMs}ms)
                 </span>
               )}
+              <span style={{
+                fontSize: '0.675rem',
+                padding: '0.1rem 0.45rem',
+                borderRadius: '4px',
+                backgroundColor: activeEngine === 'POSTGRES' ? '#E0F2FE' : '#F1F5F9',
+                color: activeEngine === 'POSTGRES' ? '#0369A1' : '#64748B',
+                fontWeight: 700
+              }}>
+                {activeEngine === 'POSTGRES' ? 'Active' : 'Standby'}
+              </span>
             </div>
 
             {/* MongoDB */}
@@ -307,6 +317,16 @@ export default function AdminDashboardPage() {
                   ({connections.mongodb.latencyMs}ms)
                 </span>
               )}
+              <span style={{
+                fontSize: '0.675rem',
+                padding: '0.1rem 0.45rem',
+                borderRadius: '4px',
+                backgroundColor: activeEngine === 'MONGODB' ? '#D1FAE5' : '#F1F5F9',
+                color: activeEngine === 'MONGODB' ? '#047857' : '#64748B',
+                fontWeight: 700
+              }}>
+                {activeEngine === 'MONGODB' ? 'Active' : 'Standby'}
+              </span>
             </div>
           </div>
 
@@ -466,7 +486,7 @@ export default function AdminDashboardPage() {
                     borderRadius: '50%',
                     backgroundColor: activeEngine === 'POSTGRES' ? '#0284C7' : '#94A3B8'
                   }} />
-                  <span>{activeEngine === 'POSTGRES' ? 'ACTIVE' : 'STANDBY'}</span>
+                  <span>{activeEngine === 'POSTGRES' ? 'ACTIVE ENGINE' : 'CONNECTED / STANDBY'}</span>
                 </span>
               </div>
 
@@ -479,7 +499,7 @@ export default function AdminDashboardPage() {
 
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: '#10B981', fontWeight: 600 }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }} />
-                <span>Connected</span>
+                <span>{activeEngine === 'POSTGRES' ? 'Connected (Active Traffic)' : 'Connected (Standby)'}</span>
               </div>
             </div>
 
@@ -532,7 +552,7 @@ export default function AdminDashboardPage() {
                     borderRadius: '50%',
                     backgroundColor: activeEngine === 'MONGODB' ? '#059669' : '#94A3B8'
                   }} />
-                  <span>{activeEngine === 'MONGODB' ? 'ACTIVE' : 'STANDBY'}</span>
+                  <span>{activeEngine === 'MONGODB' ? 'ACTIVE ENGINE' : 'CONNECTED / STANDBY'}</span>
                 </span>
               </div>
 
@@ -545,7 +565,7 @@ export default function AdminDashboardPage() {
 
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: '#10B981', fontWeight: 600 }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }} />
-                <span>Connected</span>
+                <span>{activeEngine === 'MONGODB' ? 'Connected (Active Traffic)' : 'Connected (Standby)'}</span>
               </div>
             </div>
 
@@ -1010,18 +1030,22 @@ export default function AdminDashboardPage() {
                   alignItems: 'center',
                   gap: '0.35rem',
                   fontSize: '0.725rem',
-                  color: '#10B981',
-                  fontWeight: 700
+                  color: activeEngine === 'POSTGRES' ? '#0284C7' : '#047857',
+                  backgroundColor: activeEngine === 'POSTGRES' ? '#E0F2FE' : '#F1F5F9',
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '999px',
+                  fontWeight: 700,
+                  border: activeEngine === 'POSTGRES' ? '1px solid #BAE6FD' : '1px solid #E2E8F0'
                 }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }} />
-                  <span>Connected</span>
+                  <span>{activeEngine === 'POSTGRES' ? 'Active Engine' : 'Connected / Standby'}</span>
                 </span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.825rem' }}>
                 <DetailRow label="Probe Latency" value={`${dbDetails.postgres?.latencyMs || connections.postgres?.latencyMs || '1.45'} ms`} isHighlight />
                 <DetailRow label="P95 Latency" value={`${dbDetails.postgres?.p95 || '14.21'} ms`} />
-                <DetailRow label="Active Connections" value={dbDetails.postgres?.connections || '4 / 10'} />
+                <DetailRow label="Connection Pool" value={dbDetails.postgres?.connections || '4 / 10'} />
                 <div style={{ borderTop: '1px solid #F1F5F9', margin: '0.35rem 0' }} />
                 <DetailRow label="Registered Indexes" value={`${dbDetails.postgres?.indexes || 18} Active`} />
                 <DetailRow label="Total Data Size" value={dbDetails.postgres?.dataSize || '319 MB'} />
@@ -1050,18 +1074,22 @@ export default function AdminDashboardPage() {
                   alignItems: 'center',
                   gap: '0.35rem',
                   fontSize: '0.725rem',
-                  color: '#10B981',
-                  fontWeight: 700
+                  color: activeEngine === 'MONGODB' ? '#047857' : '#64748B',
+                  backgroundColor: activeEngine === 'MONGODB' ? '#D1FAE5' : '#F1F5F9',
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '999px',
+                  fontWeight: 700,
+                  border: activeEngine === 'MONGODB' ? '1px solid #A7F3D0' : '1px solid #E2E8F0'
                 }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }} />
-                  <span>Connected</span>
+                  <span>{activeEngine === 'MONGODB' ? 'Active Engine' : 'Connected / Standby'}</span>
                 </span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.825rem' }}>
                 <DetailRow label="Probe Latency" value={`${dbDetails.mongodb?.latencyMs || connections.mongodb?.latencyMs || '1.72'} ms`} isHighlight isMongo />
                 <DetailRow label="P95 Latency" value={`${dbDetails.mongodb?.p95 || '13.84'} ms`} isMongo />
-                <DetailRow label="Active Connections" value={dbDetails.mongodb?.connections || '3 / 10'} />
+                <DetailRow label="Connection Pool" value={dbDetails.mongodb?.connections || '3 / 10'} />
                 <div style={{ borderTop: '1px solid #F1F5F9', margin: '0.35rem 0' }} />
                 <DetailRow label="Registered Indexes" value={`${dbDetails.mongodb?.indexes || 20} Active`} />
                 <DetailRow label="Total Data Size" value={dbDetails.mongodb?.dataSize || '329.7 MB'} />
