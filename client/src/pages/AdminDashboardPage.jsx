@@ -105,6 +105,11 @@ export default function AdminDashboardPage() {
   const [storageData, setStorageData] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Controlled Application-Level Comparison State (Option B: True End-to-End Response Time)
+  const [comparisonData, setComparisonData] = useState(null);
+  const [comparing, setComparing] = useState(false);
+  const [comparisonError, setComparisonError] = useState(null);
+
   // Fetch Live Telemetry Data
   const fetchMetrics = async (isManual = false) => {
     if (isManual) setRefreshing(true);
@@ -135,6 +140,9 @@ export default function AdminDashboardPage() {
         if (data.data.latestBenchmark && !benchmarkResult) {
           setBenchmarkResult(data.data.latestBenchmark);
         }
+        if (data.data.latestComparison && !comparisonData) {
+          setComparisonData(data.data.latestComparison);
+        }
         if (data.data.indexAnalysis) {
           setIndexData(data.data.indexAnalysis);
         }
@@ -146,6 +154,33 @@ export default function AdminDashboardPage() {
       console.error('Failed to load metrics:', err);
     } finally {
       if (isManual) setRefreshing(false);
+    }
+  };
+
+  // Run Controlled Option B End-to-End Application Comparison
+  const runComparison = async () => {
+    setComparing(true);
+    setComparisonError(null);
+    try {
+      const res = await fetch('/api/admin/compare', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ operation: 'feed_read' })
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setComparisonData(data.data);
+      } else {
+        setComparisonError(data.error?.message || 'Comparison failed');
+      }
+    } catch (err) {
+      console.error('Controlled comparison error:', err);
+      setComparisonError(err.message || 'Comparison failed');
+    } finally {
+      setComparing(false);
     }
   };
 
@@ -891,78 +926,236 @@ export default function AdminDashboardPage() {
           padding: '2rem',
           boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.04)'
         }}>
-          <div style={{ marginBottom: '1.25rem' }}>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.02em' }}>
-              DATABASE COMPARISON
-            </h2>
-            <p style={{ fontSize: '0.8rem', color: '#64748B', margin: '0.2rem 0 0 0' }}>
-              Empirical diagnostic inspection of both database engines for ADBMS project evaluation
-            </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.02em' }}>
+                DATABASE COMPARISON
+              </h2>
+              <p style={{ fontSize: '0.8rem', color: '#64748B', margin: '0.2rem 0 0 0' }}>
+                Empirical diagnostic inspection of both database engines for ADBMS project evaluation
+              </p>
+            </div>
+            <button
+              onClick={runComparison}
+              disabled={comparing}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                backgroundColor: comparing ? '#94A3B8' : '#0F172A',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '0.5rem 0.95rem',
+                fontSize: '0.785rem',
+                fontWeight: 700,
+                cursor: comparing ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
+              }}
+            >
+              <RefreshCw size={14} className={comparing ? 'animate-spin' : ''} />
+              <span>{comparing ? 'Measuring…' : comparisonData ? 'Re-run Comparison' : 'Measure Comparison'}</span>
+            </button>
           </div>
 
-          {/* DYNAMIC RESPONSE TIME COMPARISON BAR CHART */}
-          {(() => {
-            const pgMs = dbDetails.postgres?.healthProbeMs ?? (perfData.p50 || 135);
-            const mongoMs = dbDetails.mongodb?.healthProbeMs ?? 23;
-            const maxMs = Math.max(pgMs, mongoMs, 1);
-            const pgWidth = Math.min(100, Math.max(8, Math.round((pgMs / maxMs) * 100)));
-            const mongoWidth = Math.min(100, Math.max(8, Math.round((mongoMs / maxMs) * 100)));
-            const isMongoFaster = mongoMs < pgMs;
-            const fasterEngine = isMongoFaster ? 'MongoDB' : 'PostgreSQL';
-            const pctLower = Math.abs(((Math.max(pgMs, mongoMs) - Math.min(pgMs, mongoMs)) / Math.max(pgMs, mongoMs)) * 100).toFixed(1);
-
-            return (
-              <div style={{
-                backgroundColor: '#FAF8F4',
-                border: '1px solid #E2E8F0',
-                borderRadius: '12px',
-                padding: '1.25rem 1.5rem',
-                marginBottom: '1.5rem'
-              }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748B', letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '1rem' }}>
-                  Response Time Comparison
+          {/* CONTROLLED END-TO-END APPLICATION RESPONSE TIME COMPARISON (OPTION B) */}
+          <div style={{
+            backgroundColor: '#FAF8F4',
+            border: '1px solid #E2E8F0',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            marginBottom: '1.5rem'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.25rem' }}>
+              <div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
+                  END-TO-END RESPONSE TIME
                 </div>
-
-                {/* PostgreSQL Bar */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem', fontSize: '0.85rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 700, color: '#0F172A' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0284C7' }} />
-                      <span>PostgreSQL</span>
-                    </div>
-                    <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#0284C7' }}>{pgMs} ms</span>
-                  </div>
-                  <div style={{ width: '100%', height: '12px', backgroundColor: '#E2E8F0', borderRadius: '999px', overflow: 'hidden' }}>
-                    <div style={{ width: `${pgWidth}%`, height: '100%', backgroundColor: '#0284C7', borderRadius: '999px', transition: 'width 0.4s ease' }} />
-                  </div>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748B', marginTop: '0.15rem' }}>
+                  Operation: {comparisonData?.operationLabel || 'Feed Read (30 posts)'}
                 </div>
+              </div>
+              {comparisonData?.timestamp && !comparing && (
+                <span style={{ fontSize: '0.725rem', fontFamily: 'monospace', color: '#64748B', backgroundColor: '#FFFFFF', padding: '0.2rem 0.55rem', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                  Measured at {comparisonData.timestamp}
+                </span>
+              )}
+            </div>
 
-                {/* MongoDB Bar */}
-                <div style={{ marginBottom: '1.25rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem', fontSize: '0.85rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 700, color: '#0F172A' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#059669' }} />
-                      <span>MongoDB</span>
-                    </div>
-                    <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#059669' }}>{mongoMs} ms</span>
-                  </div>
-                  <div style={{ width: '100%', height: '12px', backgroundColor: '#E2E8F0', borderRadius: '999px', overflow: 'hidden' }}>
-                    <div style={{ width: `${mongoWidth}%`, height: '100%', backgroundColor: '#059669', borderRadius: '999px', transition: 'width 0.4s ease' }} />
-                  </div>
+            {comparing ? (
+              /* State 1: Active Measurement in Progress */
+              <div style={{ padding: '0.75rem 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', fontSize: '0.85rem', fontWeight: 700, color: '#D97706', marginBottom: '1rem' }}>
+                  <RefreshCw size={15} className="animate-spin" />
+                  <span>Comparing engines…</span>
                 </div>
-
-                {/* Scientifically Defensible Conclusion */}
-                <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '0.85rem' }}>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: isMongoFaster ? '#059669' : '#0284C7' }}>
-                    {fasterEngine}: {pctLower}% lower response time in this measured operation
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#475569' }}>
+                    <span style={{ fontWeight: 600 }}>PostgreSQL</span>
+                    <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>Measuring…</span>
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '0.2rem' }}>
-                    Based on the latest equivalent operation measured on both engines.
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#475569' }}>
+                    <span style={{ fontWeight: 600 }}>MongoDB</span>
+                    <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>Measuring…</span>
                   </div>
                 </div>
               </div>
-            );
-          })()}
+            ) : comparisonError ? (
+              /* State 2: Error Boundary */
+              <div style={{ padding: '0.75rem 0', color: '#B91C1C', fontSize: '0.825rem' }}>
+                <p style={{ margin: '0 0 0.4rem 0', fontWeight: 700 }}>
+                  Comparison unavailable — both engines must complete the equivalent operation.
+                </p>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748B' }}>{comparisonError}</p>
+              </div>
+            ) : !comparisonData ? (
+              /* State 3: Empty / Initial State */
+              <div style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
+                <Clock size={28} style={{ color: '#94A3B8', margin: '0 auto 0.75rem auto', display: 'block' }} />
+                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0F172A', marginBottom: '0.35rem' }}>
+                  No comparison available yet.
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#64748B', maxWidth: '440px', margin: '0 auto 1.25rem auto' }}>
+                  Run an equivalent operation on both engines to measure.
+                </div>
+                <button
+                  onClick={runComparison}
+                  style={{
+                    backgroundColor: '#0F172A',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '0.55rem 1.2rem',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Run Comparison
+                </button>
+              </div>
+            ) : (
+              /* State 4: Completed Measurements */
+              (() => {
+                const pgMs = comparisonData.postgres?.responseTimeMs;
+                const mongoMs = comparisonData.mongodb?.responseTimeMs;
+                const pgDbMs = comparisonData.postgres?.dbExecutionMs;
+                const mongoDbMs = comparisonData.mongodb?.dbExecutionMs;
+
+                const hasValidPg = typeof pgMs === 'number' && pgMs > 0;
+                const hasValidMongo = typeof mongoMs === 'number' && mongoMs > 0;
+
+                if (!hasValidPg || !hasValidMongo) {
+                  return (
+                    <div style={{ padding: '0.75rem 0', color: '#B91C1C', fontSize: '0.825rem' }}>
+                      Comparison unavailable — both engines must complete the equivalent operation.
+                    </div>
+                  );
+                }
+
+                const maxMs = Math.max(pgMs, mongoMs);
+                const pgWidth = Math.min(100, Math.max(8, Math.round((pgMs / maxMs) * 100)));
+                const mongoWidth = Math.min(100, Math.max(8, Math.round((mongoMs / maxMs) * 100)));
+
+                const diffMs = Math.abs(pgMs - mongoMs);
+                const diffPct = maxMs > 0 ? parseFloat(((diffMs / maxMs) * 100).toFixed(1)) : 0;
+                const isEquivalent = diffPct < 3.0;
+                const fasterEngine = mongoMs < pgMs ? 'MongoDB' : 'PostgreSQL';
+
+                const maxDbMs = Math.max(pgDbMs || 1, mongoDbMs || 1);
+                const pgDbWidth = Math.min(100, Math.max(8, Math.round(((pgDbMs || 0) / maxDbMs) * 100)));
+                const mongoDbWidth = Math.min(100, Math.max(8, Math.round(((mongoDbMs || 0) / maxDbMs) * 100)));
+
+                return (
+                  <div>
+                    {/* PostgreSQL End-to-End Bar */}
+                    <div style={{ marginBottom: '1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem', fontSize: '0.85rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 700, color: '#0F172A' }}>
+                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0284C7' }} />
+                          <span>PostgreSQL</span>
+                        </div>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#0284C7' }}>{pgMs} ms</span>
+                      </div>
+                      <div style={{ width: '100%', height: '14px', backgroundColor: '#E2E8F0', borderRadius: '999px', overflow: 'hidden' }}>
+                        <div style={{ width: `${pgWidth}%`, height: '100%', backgroundColor: '#0284C7', borderRadius: '999px', transition: 'width 0.4s ease' }} />
+                      </div>
+                    </div>
+
+                    {/* MongoDB End-to-End Bar */}
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem', fontSize: '0.85rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 700, color: '#0F172A' }}>
+                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#059669' }} />
+                          <span>MongoDB</span>
+                        </div>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#059669' }}>{mongoMs} ms</span>
+                      </div>
+                      <div style={{ width: '100%', height: '14px', backgroundColor: '#E2E8F0', borderRadius: '999px', overflow: 'hidden' }}>
+                        <div style={{ width: `${mongoWidth}%`, height: '100%', backgroundColor: '#059669', borderRadius: '999px', transition: 'width 0.4s ease' }} />
+                      </div>
+                    </div>
+
+                    {/* Dynamic Percentage Conclusion */}
+                    <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '0.85rem', marginBottom: '1.25rem' }}>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 800, color: isEquivalent ? '#0F172A' : (fasterEngine === 'MongoDB' ? '#059669' : '#0284C7') }}>
+                        {isEquivalent
+                          ? 'Response times are approximately equivalent in this measured operation.'
+                          : `${fasterEngine}: ${diffPct}% lower response time`}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '0.2rem' }}>
+                        Based on the latest equivalent application operation measured on both engines.
+                      </div>
+                    </div>
+
+                    {/* 13. SEPARATE DATABASE EXECUTION TIME */}
+                    <div style={{
+                      borderTop: '1px dashed #CBD5E1',
+                      paddingTop: '1rem',
+                      marginTop: '0.5rem'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                          DATABASE EXECUTION TIME (DB-SIDE ONLY)
+                        </div>
+                        <span style={{ fontSize: '0.7rem', color: '#64748B', fontStyle: 'italic' }}>
+                          Raw query execution without application/serialization overhead
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.75rem 1rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem', fontSize: '0.775rem' }}>
+                            <span style={{ fontWeight: 600, color: '#0F172A' }}>PostgreSQL</span>
+                            <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#0284C7' }}>{pgDbMs != null ? `${pgDbMs} ms` : '—'}</span>
+                          </div>
+                          <div style={{ width: '100%', height: '6px', backgroundColor: '#E2E8F0', borderRadius: '999px', overflow: 'hidden' }}>
+                            <div style={{ width: `${pgDbWidth}%`, height: '100%', backgroundColor: '#0284C7', borderRadius: '999px' }} />
+                          </div>
+                        </div>
+
+                        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.75rem 1rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem', fontSize: '0.775rem' }}>
+                            <span style={{ fontWeight: 600, color: '#0F172A' }}>MongoDB</span>
+                            <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#059669' }}>{mongoDbMs != null ? `${mongoDbMs} ms` : '—'}</span>
+                          </div>
+                          <div style={{ width: '100%', height: '6px', backgroundColor: '#E2E8F0', borderRadius: '999px', overflow: 'hidden' }}>
+                            <div style={{ width: `${mongoDbWidth}%`, height: '100%', backgroundColor: '#059669', borderRadius: '999px' }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Subtle Measurement Conditions Note (Requirement 17) */}
+                    <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '1rem', fontStyle: 'italic', borderTop: '1px solid #F1F5F9', paddingTop: '0.65rem' }}>
+                      Measured using the same application workload and dataset. Values represent application-side elapsed time and may vary with cache and connection state.
+                    </div>
+                  </div>
+                );
+              })()
+            )}
+          </div>
 
           {/* Architectural Distinction Banner */}
           <div style={{

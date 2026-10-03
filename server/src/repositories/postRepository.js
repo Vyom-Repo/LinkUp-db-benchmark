@@ -3,8 +3,8 @@ const { getMongoDb } = require('../config/mongodb');
 const { getActiveEngine } = require('../config/engineState');
 
 // 1. GET FEED
-async function getFeed({ currentUserId, limit = 20, page = 1, offset = 0, sort = '', q = '', seed = '' }) {
-  const activeEngine = getActiveEngine();
+async function getFeed({ currentUserId, limit = 20, page = 1, offset = 0, sort = '', q = '', seed = '', engineOverride = null }) {
+  const activeEngine = engineOverride ? (engineOverride.toUpperCase().includes('MONGO') ? 'MONGODB' : 'POSTGRES') : getActiveEngine();
   const t0 = performance.now();
 
   if (activeEngine === 'MONGODB') {

@@ -6,6 +6,7 @@ const { getMongoDb, testMongoConnection, connectMongo } = require('../config/mon
 const { getActiveEngine, setActiveEngine } = require('../config/engineState');
 const { getPerformanceStats, clearOnEngineSwitch } = require('../middleware/requestTracker');
 const { runBenchmarkSuite, getLatestBenchmark } = require('../services/benchmarkService');
+const { runControlledComparison, getLatestComparison } = require('../services/comparisonService');
 
 // In-memory audit of engine switches
 const switchHistory = [
@@ -318,6 +319,7 @@ router.get('/metrics', requireAuth, requireAdmin, async (req, res) => {
         storage,
         switchHistory,
         latestBenchmark: getLatestBenchmark(),
+        latestComparison: getLatestComparison(),
         serverTime: new Date().toISOString(),
       },
     });
@@ -327,7 +329,29 @@ router.get('/metrics', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// 2. RUN SCIENTIFIC BENCHMARK SUITE
+// 2. RUN CONTROLLED APPLICATION RESPONSE TIME COMPARISON (OPTION B)
+router.post('/compare', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { operation = 'feed_read' } = req.body || {};
+    const result = await runControlledComparison(operation);
+    return res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('[Admin Compare Run Error]:', err);
+    return res.status(500).json({ success: false, error: { message: 'Failed to execute controlled comparison.' } });
+  }
+});
+
+router.get('/compare/latest', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const latest = getLatestComparison();
+    return res.json({ success: true, data: latest });
+  } catch (err) {
+    console.error('[Admin Compare Latest Error]:', err);
+    return res.status(500).json({ success: false, error: { message: 'Failed to retrieve latest comparison.' } });
+  }
+});
+
+// 3. RUN SCIENTIFIC BENCHMARK SUITE
 router.post('/benchmark/run', requireAuth, requireAdmin, async (req, res) => {
   try {
     const result = await runBenchmarkSuite();
@@ -338,7 +362,7 @@ router.post('/benchmark/run', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// 3. GET LATEST BENCHMARK RESULTS
+// 4. GET LATEST BENCHMARK RESULTS
 router.get('/benchmark/latest', requireAuth, requireAdmin, async (req, res) => {
   try {
     const latest = getLatestBenchmark();
@@ -349,7 +373,7 @@ router.get('/benchmark/latest', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// 4. TOGGLE DATABASE ENGINE (Protected: Admin Only)
+// 5. TOGGLE DATABASE ENGINE (Protected: Admin Only)
 router.post('/db-switch', requireAuth, requireAdmin, async (req, res) => {
   const { engine } = req.body;
   if (!['POSTGRES', 'MONGODB'].includes(engine?.toUpperCase())) {
