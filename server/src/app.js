@@ -6,10 +6,13 @@ const { connectMongo, testMongoConnection } = require('./config/mongodb');
 
 const app = express();
 
+const { trackRequest } = require('./middleware/requestTracker');
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(trackRequest);
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
