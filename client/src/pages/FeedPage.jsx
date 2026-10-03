@@ -56,7 +56,7 @@ export default function FeedPage() {
         },
       });
       const t1 = performance.now();
-      setLatencyMs(Math.round(t1 - t0));
+      const measuredMs = Math.round(t1 - t0);
 
       const data = await res.json();
       if (data.success) {
@@ -64,6 +64,7 @@ export default function FeedPage() {
         if (data.data.engine) {
           setCurrentEngine(data.data.engine);
         }
+        setLatencyMs(measuredMs);
       }
     } catch (err) {
       console.error('Failed to load feed:', err);
@@ -77,6 +78,41 @@ export default function FeedPage() {
     if (token) {
       fetchFeed(true);
     }
+  }, [token]);
+
+  // Keep active database engine synchronized with global state without artificial delays
+  useEffect(() => {
+    let isMounted = true;
+    const checkActiveEngine = async () => {
+      try {
+        const res = await fetch('/api/health');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.activeEngine && isMounted) {
+          setCurrentEngine((prev) => {
+            if (prev !== data.activeEngine) {
+              // Engine switched: immediately update engine name, clear old latency, and fetch fresh feed
+              setLatencyMs(null);
+              fetchFeed(false);
+              return data.activeEngine;
+            }
+            return prev;
+          });
+        }
+      } catch (err) {
+        // Silently ignore background polling errors
+      }
+    };
+
+    const interval = setInterval(checkActiveEngine, 2500);
+    const handleFocus = () => checkActiveEngine();
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [token]);
 
   // Helper to optimize and convert an image File/Blob into a crisp, lightweight Data URL
@@ -351,13 +387,15 @@ export default function FeedPage() {
         {/* ────────────────────────────────────────────── */}
         <main style={{ minWidth: 0 }}>
           
-          {/* Header Bar with Subtle Latency Indicator */}
+          {/* Header Bar with Database Engine Performance Indicator */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             marginBottom: '1rem',
-            padding: '0 0.25rem'
+            padding: '0 0.25rem',
+            flexWrap: 'wrap',
+            gap: '0.75rem'
           }}>
             <div>
               <h1 style={{ fontSize: '1.35rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>
@@ -368,27 +406,100 @@ export default function FeedPage() {
               </p>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              {latencyMs !== null && (
-                <div 
-                  title="Measured round-trip API latency for this query"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    color: 'var(--text-secondary)',
-                    backgroundColor: '#FAF8F4',
-                    border: '1px solid var(--border-color)',
-                    padding: '0.3rem 0.65rem',
-                    borderRadius: 'var(--radius-full)'
-                  }}
-                >
-                  <Activity size={12} style={{ color: currentEngine === 'MONGODB' ? '#10b981' : '#3b82f6' }} />
-                  <span>LinkUp ({currentEngine}) · {latencyMs} ms</span>
-                </div>
-              )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              {/* Compact Database Performance Indicator */}
+              {(() => {
+                const isMongo = currentEngine?.toUpperCase() === 'MONGODB';
+                const displayName = isMongo ? 'MongoDB' : 'PostgreSQL';
+                const themeColor = isMongo ? '#059669' : '#0284C7';
+                const isLoading = refreshing || latencyMs === null;
+                // Sensible clamping: normalized against a 200ms scale, min 8% for fast responses so the meter is visible
+                const meterPercent = latencyMs === null
+                  ? 0
+                  : Math.min(100, Math.max(8, Math.round((latencyMs / 200) * 100)));
+
+                return (
+                  <div 
+                    title={`Database Engine\n${displayName} is currently serving your requests.\n${latencyMs !== null ? `Last response: ${latencyMs} ms` : 'Measuring response time...'}`}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      minWidth: '152px',
+                      padding: '0.35rem 0.65rem',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      boxShadow: 'var(--shadow-sm)',
+                      cursor: 'default',
+                      userSelect: 'none',
+                    }}
+                  >
+                    {/* Top Row: Active Engine & Measured Latency */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.65rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <span
+                          style={{
+                            width: '6.5px',
+                            height: '6.5px',
+                            borderRadius: '50%',
+                            backgroundColor: themeColor,
+                            boxShadow: `0 0 0 2px ${isMongo ? 'rgba(5, 150, 105, 0.18)' : 'rgba(2, 132, 199, 0.18)'}`,
+                            display: 'inline-block',
+                            transition: 'all 0.3s ease',
+                            opacity: isLoading ? 0.6 : 1,
+                          }}
+                        />
+                        <span
+                          style={{
+                            fontSize: '0.74rem',
+                            fontWeight: 650,
+                            color: 'var(--text-primary)',
+                            letterSpacing: '-0.01em',
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {displayName}
+                        </span>
+                      </div>
+
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 600,
+                          fontVariantNumeric: 'tabular-nums',
+                          color: isLoading ? 'var(--text-muted)' : 'var(--text-secondary)',
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {isLoading ? 'Loading…' : `${latencyMs} ms`}
+                      </span>
+                    </div>
+
+                    {/* Bottom Row: Dynamic Visual Latency Meter */}
+                    <div
+                      style={{
+                        width: '100%',
+                        height: '2.5px',
+                        backgroundColor: 'rgba(44, 39, 32, 0.08)',
+                        borderRadius: '999px',
+                        overflow: 'hidden',
+                        marginTop: '0.28rem',
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: '100%',
+                          width: `${meterPercent}%`,
+                          borderRadius: '999px',
+                          backgroundColor: themeColor,
+                          transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease',
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
 
               <button
                 onClick={() => fetchFeed(false)}
