@@ -142,7 +142,7 @@ async function login(req, res) {
       });
     }
 
-    const identifier = email.trim().toLowerCase();
+    const identifier = String(email).trim().toLowerCase();
 
     // Query user from PostgreSQL first
     let user = null;
