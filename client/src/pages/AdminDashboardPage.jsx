@@ -108,12 +108,12 @@ export default function AdminDashboardPage() {
 
   // Storage Analysis
   const [storageData, setStorageData] = useState([
-    { entity: 'Users', postgres: '12.4 MB', mongodb: '11.8 MB' },
-    { entity: 'Posts', postgres: '76.2 MB', mongodb: '71.4 MB' },
-    { entity: 'Comments', postgres: '28.5 MB', mongodb: '26.9 MB' },
-    { entity: 'Likes', postgres: '9.8 MB', mongodb: '8.7 MB' },
-    { entity: 'Indexes', postgres: '31.1 MB', mongodb: '28.4 MB' },
-    { entity: 'Total Footprint', postgres: '158.0 MB', mongodb: '147.2 MB', isTotal: true }
+    { entity: 'Users', quantity: '105 users', postgres: '12.4 MB', mongodb: '11.8 MB' },
+    { entity: 'Posts', quantity: '100,012 posts', postgres: '76.2 MB', mongodb: '71.4 MB' },
+    { entity: 'Comments', quantity: '400,013 comments', postgres: '28.5 MB', mongodb: '26.9 MB' },
+    { entity: 'Likes', quantity: '800,003 likes', postgres: '9.8 MB', mongodb: '8.7 MB' },
+    { entity: 'Indexes', quantity: '15 indexes', postgres: '31.1 MB', mongodb: '28.4 MB' },
+    { entity: 'Total Footprint', quantity: '1,300,133 entities', postgres: '158.0 MB', mongodb: '147.2 MB', isTotal: true }
   ]);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -985,6 +985,7 @@ export default function AdminDashboardPage() {
               <thead>
                 <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B', backgroundColor: '#FAF8F4' }}>
                   <th style={{ padding: '0.75rem 1rem' }}>Entity</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Quantity / Count</th>
                   <th style={{ padding: '0.75rem 1rem' }}>PostgreSQL</th>
                   <th style={{ padding: '0.75rem 1rem' }}>MongoDB</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Distribution</th>
@@ -997,7 +998,24 @@ export default function AdminDashboardPage() {
                     fontWeight: row.isTotal ? 800 : 500,
                     backgroundColor: row.isTotal ? '#FAF8F4' : 'transparent'
                   }}>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0F172A' }}>{row.entity}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0F172A', fontWeight: row.isTotal ? 800 : 600 }}>{row.entity}</td>
+                    <td style={{ padding: '0.75rem 1rem' }}>
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        backgroundColor: row.isTotal ? '#E2E8F0' : '#F1F5F9',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: '4px',
+                        padding: '0.2rem 0.55rem',
+                        fontSize: '0.75rem',
+                        color: row.isTotal ? '#0F172A' : '#334155',
+                        fontWeight: 700,
+                        fontFamily: 'monospace'
+                      }}>
+                        {row.quantity}
+                      </span>
+                    </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0284C7', fontFamily: 'monospace' }}>{row.postgres}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#059669', fontFamily: 'monospace' }}>{row.mongodb}</td>
                     <td style={{ padding: '0.75rem 1rem', width: '220px' }}>
