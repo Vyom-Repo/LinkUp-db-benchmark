@@ -6,7 +6,8 @@ const { getMongoDb, testMongoConnection, connectMongo } = require('../config/mon
 const { getActiveEngine, setActiveEngine } = require('../config/engineState');
 const { getPerformanceStats, clearOnEngineSwitch } = require('../middleware/requestTracker');
 const { runBenchmarkSuite, getLatestBenchmark } = require('../services/benchmarkService');
-const { runControlledComparison, getLatestComparison } = require('../services/comparisonService');
+const { runControlledComparison, getLatestComparison, setLatestComparison } = require('../services/comparisonService');
+const postRepo = require('../repositories/postRepository');
 
 // In-memory audit of engine switches
 const switchHistory = [
@@ -338,6 +339,53 @@ router.post('/compare', requireAuth, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('[Admin Compare Run Error]:', err);
     return res.status(500).json({ success: false, error: { message: 'Failed to execute controlled comparison.' } });
+  }
+});
+
+// Single Workload execution over HTTP (for client-side browser round-trip measurement)
+router.get('/compare/workload', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rawEngine = (req.query.engine || '').toUpperCase();
+    const engine = rawEngine.includes('MONGO') ? 'MONGODB' : 'POSTGRES';
+    const limit = parseInt(req.query.limit, 10) || 30;
+
+    const result = await postRepo.getFeed({
+      currentUserId: null,
+      limit,
+      page: 1,
+      offset: 0,
+      sort: 'latest',
+      q: '',
+      seed: req.query.seed || 'comparison_seed',
+      engineOverride: engine
+    });
+
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    return res.json({
+      success: true,
+      data: {
+        posts: result.posts,
+        engine,
+        limit,
+        dbExecutionMs: result.dbExecutionMs || 0
+      }
+    });
+  } catch (err) {
+    console.error('[Admin Compare Workload Error]:', err);
+    return res.status(500).json({ success: false, error: { message: err.message } });
+  }
+});
+
+// Record browser-measured client HTTP round-trip comparison results
+router.post('/compare/record', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { comparison } = req.body;
+    if (comparison) {
+      setLatestComparison(comparison);
+    }
+    return res.json({ success: true, data: getLatestComparison() });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: { message: err.message } });
   }
 });
 

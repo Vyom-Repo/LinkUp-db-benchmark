@@ -157,27 +157,130 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Run Controlled Option B End-to-End Application Comparison
+  // Run Controlled Client Browser-to-Server HTTP Round-Trip Comparison
   const runComparison = async () => {
     setComparing(true);
     setComparisonError(null);
     try {
-      const res = await fetch('/api/admin/compare', {
+      const fetchEngineSample = async (engine) => {
+        const seed = Date.now().toString() + '_' + Math.random().toString(36).slice(2, 7);
+        const t0 = performance.now();
+        const res = await fetch(`/api/admin/compare/workload?engine=${engine}&limit=30&seed=${seed}&_t=${Date.now()}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Cache-Control': 'no-cache',
+            Pragma: 'no-cache'
+          }
+        });
+        const json = await res.json();
+        const t1 = performance.now();
+        if (!res.ok || !json.success) {
+          throw new Error(json.error?.message || `Failed to fetch ${engine}`);
+        }
+        const appResponseMs = Math.max(1, Math.round(t1 - t0));
+        const dbExecutionMs = json.data?.dbExecutionMs ? parseFloat(json.data.dbExecutionMs.toFixed(2)) : 0;
+        return { appResponseMs, dbExecutionMs };
+      };
+
+      // 1. Warm-up (1 unrecorded run per engine)
+      try {
+        await fetchEngineSample('POSTGRES');
+        await fetchEngineSample('MONGODB');
+      } catch (wErr) {
+        console.warn('Warmup notice:', wErr.message);
+      }
+
+      // 2. Controlled alternating sample collection (3 samples per engine)
+      const samplesCount = 3;
+      const pgAppSamples = [];
+      const pgDbSamples = [];
+      const mongoAppSamples = [];
+      const mongoDbSamples = [];
+
+      for (let i = 0; i < samplesCount; i++) {
+        if (i % 2 === 0) {
+          const pgRes = await fetchEngineSample('POSTGRES');
+          pgAppSamples.push(pgRes.appResponseMs);
+          pgDbSamples.push(pgRes.dbExecutionMs);
+
+          const mongoRes = await fetchEngineSample('MONGODB');
+          mongoAppSamples.push(mongoRes.appResponseMs);
+          mongoDbSamples.push(mongoRes.dbExecutionMs);
+        } else {
+          const mongoRes = await fetchEngineSample('MONGODB');
+          mongoAppSamples.push(mongoRes.appResponseMs);
+          mongoDbSamples.push(mongoRes.dbExecutionMs);
+
+          const pgRes = await fetchEngineSample('POSTGRES');
+          pgAppSamples.push(pgRes.appResponseMs);
+          pgDbSamples.push(pgRes.dbExecutionMs);
+        }
+      }
+
+      const calcMedian = (arr) => {
+        if (!arr.length) return 0;
+        const sorted = [...arr].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 !== 0 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+      };
+
+      const pgMedianApp = calcMedian(pgAppSamples);
+      const pgMedianDb = calcMedian(pgDbSamples);
+      const mongoMedianApp = calcMedian(mongoAppSamples);
+      const mongoMedianDb = calcMedian(mongoDbSamples);
+
+      const maxMs = Math.max(pgMedianApp, mongoMedianApp);
+      const diffMs = Math.abs(pgMedianApp - mongoMedianApp);
+      const diffPct = maxMs > 0 ? parseFloat(((diffMs / maxMs) * 100).toFixed(1)) : 0;
+      const isEquivalent = diffPct < 3.0;
+      const fasterEngine = mongoMedianApp < pgMedianApp ? 'MongoDB' : 'PostgreSQL';
+
+      const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      const newComparison = {
+        timestamp: timeStr,
+        operation: 'feed_read',
+        operationLabel: 'Feed Read (30 posts · Full Browser HTTP Round-Trip)',
+        metric: 'browser_http_round_trip',
+        unit: 'ms',
+        postgres: {
+          engine: 'PostgreSQL',
+          responseTimeMs: pgMedianApp,
+          medianMs: pgMedianApp,
+          dbExecutionMs: pgMedianDb,
+          samples: pgAppSamples
+        },
+        mongodb: {
+          engine: 'MongoDB',
+          responseTimeMs: mongoMedianApp,
+          medianMs: mongoMedianApp,
+          dbExecutionMs: mongoMedianDb,
+          samples: mongoAppSamples
+        },
+        comparison: {
+          fasterEngine,
+          differencePercent: diffPct,
+          isEquivalent,
+          statement: isEquivalent
+            ? 'Response times are approximately equivalent in this measured operation.'
+            : `${fasterEngine}: ${diffPct}% lower response time in this measured operation`
+        }
+      };
+
+      setComparisonData(newComparison);
+
+      // Persist to backend so it remains visible on dashboard refresh
+      fetch('/api/admin/compare/record', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ operation: 'feed_read' })
-      });
-      const data = await res.json();
-      if (data.success && data.data) {
-        setComparisonData(data.data);
-      } else {
-        setComparisonError(data.error?.message || 'Comparison failed');
-      }
+        body: JSON.stringify({ comparison: newComparison })
+      }).catch(() => {});
+
     } catch (err) {
-      console.error('Controlled comparison error:', err);
+      console.error('Controlled browser comparison error:', err);
       setComparisonError(err.message || 'Comparison failed');
     } finally {
       setComparing(false);
@@ -1147,9 +1250,9 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
 
-                    {/* Subtle Measurement Conditions Note (Requirement 17) */}
+                    {/* Subtle Measurement Conditions Note */}
                     <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '1rem', fontStyle: 'italic', borderTop: '1px solid #F1F5F9', paddingTop: '0.65rem' }}>
-                      Measured using the same application workload and dataset. Values represent application-side elapsed time and may vary with cache and connection state.
+                      Measured via client-side HTTP round-trip on the same application workload and dataset. Values reflect the complete user-facing request cycle (network, proxy, API controller, and database execution).
                     </div>
                   </div>
                 );

@@ -177,7 +177,13 @@ function getLatestComparison() {
   return latestComparison;
 }
 
+function setLatestComparison(comp) {
+  latestComparison = comp;
+  return latestComparison;
+}
+
 module.exports = {
   runControlledComparison,
-  getLatestComparison
+  getLatestComparison,
+  setLatestComparison
 };
