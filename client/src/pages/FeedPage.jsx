@@ -4,7 +4,6 @@ import {
   Home, 
   Compass, 
   Search, 
-  Bookmark, 
   User, 
   TrendingUp, 
   RefreshCw, 
@@ -324,31 +323,6 @@ export default function FeedPage() {
               >
                 <User size={17} />
                 <span>My Profile</span>
-              </button>
-
-              <button 
-                onClick={() => alert('Your saved discussions collection')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.6rem 0.75rem',
-                  borderRadius: '8px',
-                  backgroundColor: 'transparent',
-                  color: 'var(--text-secondary)',
-                  fontWeight: 600,
-                  fontSize: '0.875rem',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  width: '100%',
-                  transition: 'background-color 0.15s ease',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F2EFE9'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                <Bookmark size={17} />
-                <span>Saved Discussions</span>
               </button>
             </nav>
           </div>

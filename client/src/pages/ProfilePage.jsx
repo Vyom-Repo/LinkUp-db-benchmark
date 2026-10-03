@@ -4,7 +4,6 @@ import {
   Home, 
   Compass, 
   Search, 
-  Bookmark, 
   User as UserIcon, 
   Calendar, 
   Edit3, 
