@@ -5,13 +5,10 @@ import { useDatabase } from '../context/DatabaseContext';
 import { 
   Radio, 
   Search, 
-  Home, 
   Cpu, 
-  User, 
   LogOut, 
   LogIn, 
   UserPlus, 
-  Zap,
   Database
 } from 'lucide-react';
 
@@ -23,61 +20,57 @@ export default function Navbar() {
   const isCurrent = (path) => location.pathname === path;
 
   return (
-    <nav className="glass-panel" style={{ 
+    <nav style={{ 
       position: 'sticky', 
       top: 0, 
       zIndex: 100, 
-      borderRadius: 0, 
-      borderLeft: 'none', 
-      borderRight: 'none', 
-      borderTop: 'none',
+      backgroundColor: 'rgba(251, 249, 245, 0.92)',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
       borderBottom: '1px solid var(--border-color)',
-      padding: '0.75rem 0'
+      padding: '0.65rem 0'
     }}>
       <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         
-        {/* Logo & Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+        {/* Brand with AI Generated Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
           <Link to="/" style={{ 
             display: 'flex', 
             alignItems: 'center', 
-            gap: '0.625rem', 
+            gap: '0.65rem', 
             textDecoration: 'none',
             color: 'inherit'
           }}>
-            <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: 'var(--radius-md)',
-              background: 'linear-gradient(135deg, #6366f1 0%, #ec4899 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              boxShadow: '0 2px 10px rgba(99, 102, 241, 0.4)'
-            }}>
-              <Zap size={20} />
-            </div>
-            <div>
-              <span style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.03em' }}>
-                Sync
-              </span>
-            </div>
+            <img 
+              src="/logo.jpg" 
+              alt="Sync Brand Logo" 
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '8px',
+                objectFit: 'cover',
+                boxShadow: '0 2px 8px rgba(44, 39, 32, 0.08)'
+              }} 
+            />
+            <span style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>
+              Sync
+            </span>
           </Link>
 
-          {/* Primary Navigation Links */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {/* Navigation Links */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <Link 
               to="/feed" 
               className="btn btn-secondary" 
               style={{ 
                 padding: '0.45rem 0.85rem',
-                backgroundColor: isCurrent('/feed') ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                backgroundColor: isCurrent('/feed') ? 'var(--primary)' : 'transparent',
                 borderColor: isCurrent('/feed') ? 'var(--primary)' : 'transparent',
-                color: isCurrent('/feed') ? '#fff' : 'var(--text-secondary)'
+                color: isCurrent('/feed') ? '#FFFFFF' : 'var(--text-secondary)',
+                boxShadow: isCurrent('/feed') ? '0 2px 8px var(--primary-glow)' : 'none'
               }}
             >
-              <Radio size={16} />
+              <Radio size={15} />
               <span>Feed</span>
             </Link>
 
@@ -86,12 +79,13 @@ export default function Navbar() {
               className="btn btn-secondary" 
               style={{ 
                 padding: '0.45rem 0.85rem',
-                backgroundColor: isCurrent('/search') ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                backgroundColor: isCurrent('/search') ? 'var(--primary)' : 'transparent',
                 borderColor: isCurrent('/search') ? 'var(--primary)' : 'transparent',
-                color: isCurrent('/search') ? '#fff' : 'var(--text-secondary)'
+                color: isCurrent('/search') ? '#FFFFFF' : 'var(--text-secondary)',
+                boxShadow: isCurrent('/search') ? '0 2px 8px var(--primary-glow)' : 'none'
               }}
             >
-              <Search size={16} />
+              <Search size={15} />
               <span>Search</span>
             </Link>
 
@@ -100,37 +94,39 @@ export default function Navbar() {
               className="btn btn-secondary" 
               style={{ 
                 padding: '0.45rem 0.85rem',
-                backgroundColor: isCurrent('/admin') ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
-                borderColor: isCurrent('/admin') ? '#10b981' : 'transparent',
-                color: isCurrent('/admin') ? '#34d399' : 'var(--text-secondary)',
-                fontWeight: 600
+                backgroundColor: isCurrent('/admin') ? 'var(--primary)' : 'transparent',
+                borderColor: isCurrent('/admin') ? 'var(--primary)' : 'transparent',
+                color: isCurrent('/admin') ? '#FFFFFF' : 'var(--text-secondary)',
+                fontWeight: 600,
+                boxShadow: isCurrent('/admin') ? '0 2px 8px var(--primary-glow)' : 'none'
               }}
             >
-              <Cpu size={16} />
+              <Cpu size={15} />
               <span>Admin Lab</span>
             </Link>
           </div>
         </div>
 
-        {/* Right Section: Engine Quick Switcher & User Profile */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        {/* Right Section: Engine Pill & Auth */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
           
           {/* Active Database Engine Badge & Switcher */}
           <div style={{ 
             display: 'flex', 
             alignItems: 'center', 
-            gap: '0.5rem',
-            background: 'rgba(0,0,0,0.3)',
-            padding: '0.25rem 0.5rem',
+            gap: '0.4rem',
+            background: '#FFFFFF',
+            padding: '0.2rem 0.45rem',
             borderRadius: 'var(--radius-full)',
-            border: '1px solid var(--border-color)'
+            border: '1px solid var(--border-color)',
+            boxShadow: 'var(--shadow-sm)'
           }}>
             <button
               onClick={() => switchEngine(activeEngine === 'postgres' ? 'mongodb' : 'postgres')}
               disabled={switching}
               title="Click to toggle active database engine globally"
               className={activeEngine === 'postgres' ? 'badge-engine-postgres' : 'badge-engine-mongodb'}
-              style={{ cursor: 'pointer', border: 'none', background: 'transparent' }}
+              style={{ cursor: 'pointer', border: 'none' }}
             >
               <Database size={13} />
               <span>{activeEngine === 'postgres' ? 'PostgreSQL' : 'MongoDB'}</span>
@@ -143,7 +139,7 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* User Section */}
+          {/* User Auth Buttons */}
           {isAuthenticated ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <Link 
@@ -159,7 +155,7 @@ export default function Navbar() {
                 <img 
                   src={user.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${user.username}`} 
                   alt={user.username}
-                  style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)' }}
+                  style={{ width: '30px', height: '30px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)' }}
                 />
                 <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{user.name}</span>
               </Link>
@@ -170,18 +166,18 @@ export default function Navbar() {
                 style={{ padding: '0.45rem', borderRadius: 'var(--radius-full)' }}
                 title="Log out"
               >
-                <LogOut size={16} />
+                <LogOut size={15} />
               </button>
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Link to="/login" className="btn btn-secondary" style={{ padding: '0.45rem 0.85rem' }}>
-                <LogIn size={15} />
+              <Link to="/login" className="btn btn-secondary" style={{ padding: '0.45rem 0.95rem' }}>
+                <LogIn size={14} />
                 <span>Log in</span>
               </Link>
-              <Link to="/register" className="btn btn-primary" style={{ padding: '0.45rem 0.85rem' }}>
-                <UserPlus size={15} />
-                <span>Sign up</span>
+              <Link to="/register" className="btn btn-primary" style={{ padding: '0.45rem 0.95rem' }}>
+                <UserPlus size={14} />
+                <span>Register</span>
               </Link>
             </div>
           )}

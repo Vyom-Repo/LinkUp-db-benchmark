@@ -415,13 +415,13 @@ export default function AdminLabPage() {
                 <div style={{ width: '100%', height: 320 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                      <XAxis dataKey="metric" stroke="#9ca3af" fontSize={12} />
-                      <YAxis stroke="#9ca3af" fontSize={12} unit="ms" />
-                      <Tooltip contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', borderRadius: '8px' }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#EDE8DF" />
+                      <XAxis dataKey="metric" stroke="#57534E" fontSize={12} />
+                      <YAxis stroke="#57534E" fontSize={12} unit="ms" />
+                      <Tooltip contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E6E1D8', borderRadius: '8px', color: '#1C1917', boxShadow: '0 4px 12px rgba(44,39,32,0.08)' }} />
                       <Legend />
-                      <Bar dataKey="PostgreSQL" fill="#336791" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="MongoDB" fill="#00ed64" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="PostgreSQL" fill="#1E3A5F" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="MongoDB" fill="#166534" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -560,7 +560,9 @@ export default function AdminLabPage() {
                 Raw Execution Statistics ({explainResult.engine.toUpperCase()})
               </h4>
               <pre style={{
-                background: '#090d16',
+                background: '#FAF8F4',
+                color: '#1C1917',
+                border: '1px solid var(--border-color)',
                 padding: '1rem',
                 borderRadius: 'var(--radius-md)',
                 overflowX: 'auto',
