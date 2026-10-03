@@ -87,21 +87,23 @@ export default function Navbar() {
               <span>Search</span>
             </Link>
 
-            <Link 
-              to="/admin" 
-              className="btn btn-secondary" 
-              style={{ 
-                padding: '0.45rem 0.85rem',
-                backgroundColor: isCurrent('/admin') ? 'var(--primary)' : 'transparent',
-                borderColor: isCurrent('/admin') ? 'var(--primary)' : 'transparent',
-                color: isCurrent('/admin') ? '#FFFFFF' : 'var(--text-secondary)',
-                fontWeight: 600,
-                boxShadow: isCurrent('/admin') ? '0 2px 8px var(--primary-glow)' : 'none'
-              }}
-            >
-              <Cpu size={15} />
-              <span>Admin Lab</span>
-            </Link>
+            {user && user.isAdmin && (
+              <Link 
+                to="/admin" 
+                className="btn btn-secondary" 
+                style={{ 
+                  padding: '0.45rem 0.85rem',
+                  backgroundColor: isCurrent('/admin') ? 'var(--primary)' : 'transparent',
+                  borderColor: isCurrent('/admin') ? 'var(--primary)' : 'transparent',
+                  color: isCurrent('/admin') ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontWeight: 600,
+                  boxShadow: isCurrent('/admin') ? '0 2px 8px var(--primary-glow)' : 'none'
+                }}
+              >
+                <Cpu size={15} />
+                <span>Admin Lab</span>
+              </Link>
+            )}
           </div>
         )}
 

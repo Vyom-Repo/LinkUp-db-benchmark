@@ -10,6 +10,7 @@ import ProfilePage from './pages/ProfilePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AdminLabPage from './pages/AdminLabPage';
+import AdminRoute from './components/AdminRoute';
 
 export default function App() {
   return (
@@ -26,7 +27,14 @@ export default function App() {
                 <Route path="/profile/:username" element={<ProfilePage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
-                <Route path="/admin" element={<AdminLabPage />} />
+                <Route 
+                  path="/admin" 
+                  element={
+                    <AdminRoute>
+                      <AdminLabPage />
+                    </AdminRoute>
+                  } 
+                />
               </Routes>
             </main>
           </div>

@@ -24,8 +24,11 @@ export const DatabaseProvider = ({ children }) => {
     return () => window.removeEventListener('sync:telemetry-update', handleTelemetry);
   }, []);
 
-  // Fetch initial database status
+  // Fetch admin database status only when invoked with admin credentials
   const fetchStatus = async () => {
+    const token = localStorage.getItem('sync_token');
+    if (!token) return;
+
     try {
       const res = await api.get('/admin/database/status');
       if (res.data.success) {
@@ -33,15 +36,11 @@ export const DatabaseProvider = ({ children }) => {
         setActiveEngine(res.data.data.activeEngine);
       }
     } catch (err) {
-      console.warn('Could not fetch database status:', err.message);
+      // Non-admins or unauthenticated calls will be rejected with 401/403
     }
   };
 
-  useEffect(() => {
-    fetchStatus();
-  }, []);
-
-  // Global Engine Switcher
+  // Global Engine Switcher (Admin only)
   const switchEngine = async (engine) => {
     setSwitching(true);
     try {
