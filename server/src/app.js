@@ -16,22 +16,22 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/posts', require('./routes/postRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 
-// Global Engine State
-let activeEngine = config.defaultDb; // 'POSTGRES' | 'MONGODB'
+const { getActiveEngine, setActiveEngine } = require('./config/engineState');
 
 // 1. Basic Health Check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
-    activeEngine,
+    activeEngine: getActiveEngine(),
     timestamp: new Date().toISOString(),
   });
 });
 
 // 2. Database Status (Dual Engine Diagnostics)
 app.get('/api/db-status', async (req, res) => {
+  const currentEngine = getActiveEngine();
   const status = {
-    activeEngine,
+    activeEngine: currentEngine,
     postgres: { connected: false, latencyMs: null, database: null, error: null },
     mongodb: { connected: false, latencyMs: null, database: null, error: null },
   };
@@ -79,9 +79,9 @@ app.post('/api/db-switch', (req, res) => {
     });
   }
 
-  activeEngine = engine.toUpperCase();
-  console.log(`[Engine Switcher] Active database dynamically set to: ${activeEngine}`);
-  res.json({ success: true, activeEngine });
+  const newEngine = setActiveEngine(engine);
+  console.log(`[Engine Switcher] Active database dynamically set to: ${newEngine}`);
+  res.json({ success: true, activeEngine: newEngine });
 });
 
 // Server Starter
@@ -96,7 +96,7 @@ async function startServer() {
     const server = app.listen(config.port, () => {
       console.log('======================================================');
       console.log(`🚀 Sync Backend Server running on http://localhost:${config.port}`);
-      console.log(`📡 Active Database Engine: ${activeEngine}`);
+      console.log(`📡 Active Database Engine: ${getActiveEngine()}`);
       console.log(`📊 Health Endpoint:         http://localhost:${config.port}/api/health`);
       console.log(`🔬 DB Status Endpoint:      http://localhost:${config.port}/api/db-status`);
       console.log('======================================================');
@@ -113,4 +113,4 @@ if (require.main === module) {
   startServer();
 }
 
-module.exports = { app, startServer };
+module.exports = { app, startServer, getActiveEngine: () => activeEngine };

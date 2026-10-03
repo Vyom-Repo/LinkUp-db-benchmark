@@ -1,15 +1,105 @@
 const crypto = require('crypto');
 const { query } = require('../config/postgres');
 const { getMongoDb } = require('../config/mongodb');
+const { getActiveEngine } = require('../config/engineState');
 
-// 1. GET FEED POSTS (WITH AUTHOR & LIKE STATUS)
+// 1. GET FEED POSTS (WITH AUTHOR & LIKE STATUS - DYNAMIC REFRESH)
 async function getFeed(req, res) {
   try {
     const currentUserId = req.user?.id;
     const limit = parseInt(req.query.limit, 10) || 20;
     const page = parseInt(req.query.page, 10) || 1;
     const offset = (page - 1) * limit;
+    const seed = req.query.seed || req.query._t || Date.now().toString();
+    const activeEngine = getActiveEngine();
 
+    // ─────────────────────────────────────────────────────────────
+    // BRANCH A: ACTIVE ENGINE IS MONGODB
+    // ─────────────────────────────────────────────────────────────
+    if (activeEngine === 'MONGODB') {
+      const mongoDb = getMongoDb();
+
+      // 1. Fetch user's own recently created posts (last 2 hours) so they never vanish
+      const recentMyPosts = currentUserId ? await mongoDb.collection('posts').aggregate([
+        { $match: { authorId: currentUserId, createdAt: { $gte: new Date(Date.now() - 2 * 3600000) } } },
+        { $sort: { createdAt: -1 } },
+        { $limit: 5 },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'authorId',
+            foreignField: '_id',
+            as: 'author'
+          }
+        },
+        { $unwind: { path: '$author', preserveNullAndEmptyArrays: true } }
+      ]).toArray() : [];
+
+      // 2. Fetch fresh randomized sample of community discussions on refresh
+      const sampleSize = Math.max(limit - recentMyPosts.length, 5);
+      const communityPosts = await mongoDb.collection('posts').aggregate([
+        { $sample: { size: sampleSize } },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'authorId',
+            foreignField: '_id',
+            as: 'author'
+          }
+        },
+        { $unwind: { path: '$author', preserveNullAndEmptyArrays: true } }
+      ]).toArray();
+
+      // Combine user's recent posts with randomized community posts
+      const combined = [...recentMyPosts];
+      const seenIds = new Set(recentMyPosts.map((p) => p._id.toString()));
+      for (const cp of communityPosts) {
+        const idStr = cp._id.toString();
+        if (!seenIds.has(idStr)) {
+          combined.push(cp);
+          seenIds.add(idStr);
+        }
+        if (combined.length >= limit) break;
+      }
+
+      // Check liked status in MongoDB
+      const postIds = combined.map((p) => p._id.toString());
+      const myLikes = currentUserId ? await mongoDb.collection('post_likes').find({
+        userId: currentUserId,
+        postId: { $in: postIds }
+      }).toArray() : [];
+      const likedSet = new Set(myLikes.map((l) => l.postId));
+
+      const formattedPosts = combined.map((p) => ({
+        id: p._id.toString(),
+        author_id: p.authorId,
+        content: p.content,
+        image_url: p.imageUrl,
+        like_count: p.likeCount || 0,
+        comment_count: p.commentCount || 0,
+        created_at: p.createdAt,
+        author_name: p.author?.name || 'Community Member',
+        author_username: p.author?.username || 'user',
+        author_avatar: p.author?.avatarUrl || null,
+        is_liked_by_me: likedSet.has(p._id.toString())
+      }));
+
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+      return res.json({
+        success: true,
+        data: {
+          posts: formattedPosts,
+          page,
+          limit,
+          engine: 'MONGODB',
+        },
+      });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // BRANCH B: ACTIVE ENGINE IS POSTGRESQL (DEFAULT)
+    // Dynamic refresh: Shuffles discussions using seed while pinning user's new posts
+    // ─────────────────────────────────────────────────────────────
     const sql = `
       SELECT 
         p.id,
@@ -28,11 +118,13 @@ async function getFeed(req, res) {
         ) AS is_liked_by_me
       FROM posts p
       JOIN users u ON u.id = p.author_id
-      ORDER BY p.created_at DESC
+      ORDER BY 
+        CASE WHEN p.author_id = $1 AND p.created_at > (NOW() - INTERVAL '2 hours') THEN 0 ELSE 1 END ASC,
+        hashtext(p.id::text || $4) DESC
       LIMIT $2 OFFSET $3;
     `;
 
-    const result = await query(sql, [currentUserId || null, limit, offset]);
+    const result = await query(sql, [currentUserId || null, limit, offset, seed]);
 
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 
@@ -42,6 +134,7 @@ async function getFeed(req, res) {
         posts: result.rows,
         page,
         limit,
+        engine: 'POSTGRES',
       },
     });
   } catch (err) {

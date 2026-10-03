@@ -33,6 +33,7 @@ export default function FeedPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [latencyMs, setLatencyMs] = useState(null);
+  const [currentEngine, setCurrentEngine] = useState('POSTGRES');
   
   // Inline Composer State
   const [content, setContent] = useState('');
@@ -48,7 +49,7 @@ export default function FeedPage() {
     setRefreshing(true);
     const t0 = performance.now();
     try {
-      const res = await fetch(`/api/posts?limit=30&_t=${Date.now()}`, {
+      const res = await fetch(`/api/posts?limit=30&seed=${Date.now()}&_t=${Date.now()}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Cache-Control': 'no-cache',
@@ -61,6 +62,9 @@ export default function FeedPage() {
       const data = await res.json();
       if (data.success) {
         setPosts(data.data.posts);
+        if (data.data.engine) {
+          setCurrentEngine(data.data.engine);
+        }
       }
     } catch (err) {
       console.error('Failed to load feed:', err);
@@ -401,8 +405,8 @@ export default function FeedPage() {
                     borderRadius: 'var(--radius-full)'
                   }}
                 >
-                  <Activity size={12} style={{ color: '#16a34a' }} />
-                  <span>LinkUp · {latencyMs} ms</span>
+                  <Activity size={12} style={{ color: currentEngine === 'MONGODB' ? '#10b981' : '#3b82f6' }} />
+                  <span>LinkUp ({currentEngine}) · {latencyMs} ms</span>
                 </div>
               )}
 
