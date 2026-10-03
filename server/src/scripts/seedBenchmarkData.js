@@ -58,8 +58,9 @@ const LAST_NAMES = ['Patel', 'Shah', 'Sharma', 'Verma', 'Mehta', 'Joshi', 'Desai
 
 async function seedBenchmarkData() {
   console.log('================================================================');
-  console.log('🚀 LINKUP HIGH-PERFORMANCE DUAL-DATABASE BENCHMARK SEEDER');
-  console.log('Target: 30,000 Posts | 120,000 Comments | 250,000 Likes');
+  console.log('🚀 LINKUP TIER 2 BENCHMARK SEEDER (100,000+ POSTS)');
+  console.log('Target: 70,000 Additional Posts | 280,000 Comments | 550,000 Likes');
+  console.log('Combined Dataset: 100,000+ Posts | 400,000+ Comments | 800,000+ Likes');
   console.log('Persisting simultaneously into PostgreSQL (3NF) & MongoDB');
   console.log('================================================================\n');
 
@@ -70,8 +71,7 @@ async function seedBenchmarkData() {
   // 1. SEED AUTHORS / USERS
   // ─────────────────────────────────────────────────────────────
   console.log('[Step 1/4] Ensuring community users exist in both databases...');
-  const existingUsers = await query('SELECT id, username FROM users;');
-  const authors = [...existingUsers.rows];
+  let authors = [];
 
   const targetNewUsers = 100;
   const passwordHash = await bcrypt.hash('User@Sync2026', 8);
@@ -92,7 +92,6 @@ async function seedBenchmarkData() {
 
     newUsersPg.push({ id, name, username, email, passwordHash, bio, avatarUrl, now });
     newUsersMongo.push({ _id: id, id, name, username, email, passwordHash, bio, avatarUrl, isAdmin: false, createdAt: now, updatedAt: now });
-    authors.push({ id, username });
   }
 
   // Insert users in batches
@@ -127,14 +126,17 @@ async function seedBenchmarkData() {
     );
   }
 
-  console.log(`✅ [Users] ${authors.length} total active author identities ready.\n`);
+  // Fetch actual verified database users to guarantee FK constraints
+  const authorsRes = await query('SELECT id, username FROM users;');
+  authors = authorsRes.rows;
+  console.log(`✅ [Users] ${authors.length} verified author identities ready.\n`);
 
   // ─────────────────────────────────────────────────────────────
-  // 2. SEED 30,000 POSTS IN BATCHES OF 1,000
+  // 2. SEED 70,000 ADDITIONAL POSTS IN BATCHES OF 1,000
   // ─────────────────────────────────────────────────────────────
-  const TOTAL_POSTS = 30000;
+  const TOTAL_POSTS = 70000;
   const POST_CHUNK_SIZE = 1000;
-  console.log(`[Step 2/4] Generating and batch-inserting ${TOTAL_POSTS.toLocaleString()} posts...`);
+  console.log(`[Step 2/4] Generating and batch-inserting ${TOTAL_POSTS.toLocaleString()} additional posts...`);
 
   const createdPostIds = [];
   const postCreatedAtMap = new Map();
@@ -152,6 +154,8 @@ async function seedBenchmarkData() {
       const baseTopic = TOPICS[globalIdx % TOPICS.length];
       const content = `${baseTopic} [Benchmark Experiment #${globalIdx + 1}]`;
       const imageUrl = SAMPLE_IMAGES[globalIdx % SAMPLE_IMAGES.length];
+      const likeCount = Math.floor(Math.random() * 45);
+      const commentCount = Math.floor(Math.random() * 6);
       // Random creation date distributed over past 120 days
       const daysAgoMs = Math.floor(Math.random() * 120 * 86400000);
       const createdAt = new Date(Date.now() - daysAgoMs);
@@ -160,8 +164,8 @@ async function seedBenchmarkData() {
       postCreatedAtMap.set(postId, createdAt);
 
       // Multi-row INSERT placeholders for PostgreSQL
-      pgPostRows.push(`($${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, 0, 0, $${pIdx++}, $${pIdx++})`);
-      params.push(postId, author.id, content, imageUrl, createdAt, createdAt);
+      pgPostRows.push(`($${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++})`);
+      params.push(postId, author.id, content, imageUrl, likeCount, commentCount, createdAt, createdAt);
 
       // Document format for MongoDB
       mongoPostDocs.push({
@@ -170,8 +174,8 @@ async function seedBenchmarkData() {
         authorId: author.id,
         content,
         imageUrl,
-        likeCount: 0,
-        commentCount: 0,
+        likeCount,
+        commentCount,
         createdAt,
         updatedAt: createdAt,
       });
@@ -192,10 +196,10 @@ async function seedBenchmarkData() {
   console.log(`\n✅ [Posts] ${TOTAL_POSTS.toLocaleString()} posts dual-persisted successfully.\n`);
 
   // ─────────────────────────────────────────────────────────────
-  // 3. SEED 120,000 COMMENTS IN BATCHES OF 2,000
+  // 3. SEED 280,000 COMMENTS IN BATCHES OF 2,500
   // ─────────────────────────────────────────────────────────────
-  const TOTAL_COMMENTS = 120000;
-  const COMMENT_CHUNK_SIZE = 2000;
+  const TOTAL_COMMENTS = 280000;
+  const COMMENT_CHUNK_SIZE = 2500;
   console.log(`[Step 3/4] Generating and batch-inserting ${TOTAL_COMMENTS.toLocaleString()} comments...`);
 
   for (let offset = 0; offset < TOTAL_COMMENTS; offset += COMMENT_CHUNK_SIZE) {
@@ -243,9 +247,9 @@ async function seedBenchmarkData() {
   console.log(`\n✅ [Comments] ${TOTAL_COMMENTS.toLocaleString()} comments dual-persisted successfully.\n`);
 
   // ─────────────────────────────────────────────────────────────
-  // 4. SEED 250,000 LIKES IN BATCHES OF 5,000
+  // 4. SEED 550,000 LIKES IN BATCHES OF 5,000
   // ─────────────────────────────────────────────────────────────
-  const TOTAL_LIKES = 250000;
+  const TOTAL_LIKES = 550000;
   const LIKE_CHUNK_SIZE = 5000;
   console.log(`[Step 4/4] Generating and batch-inserting ${TOTAL_LIKES.toLocaleString()} post likes...`);
 
@@ -299,41 +303,6 @@ async function seedBenchmarkData() {
     process.stdout.write(`   ↳ Seeded ${Math.min(offset + LIKE_CHUNK_SIZE, TOTAL_LIKES).toLocaleString()} / ${TOTAL_LIKES.toLocaleString()} likes (${Math.round(((offset + LIKE_CHUNK_SIZE) / TOTAL_LIKES) * 100)}%)\r`);
   }
   console.log(`\n✅ [Likes] ${TOTAL_LIKES.toLocaleString()} post likes dual-persisted successfully.\n`);
-
-  // ─────────────────────────────────────────────────────────────
-  // 5. UPDATE DENORMALIZED COUNTERS (like_count, comment_count)
-  // ─────────────────────────────────────────────────────────────
-  console.log('[Post-Processing] Synchronizing post comment_count and like_count aggregations...');
-
-  // Update in PostgreSQL
-  await query(`
-    UPDATE posts p
-    SET 
-      comment_count = sub.c_count,
-      like_count = sub.l_count
-    FROM (
-      SELECT 
-        p_inner.id,
-        COALESCE(c.cnt, 0) AS c_count,
-        COALESCE(l.cnt, 0) AS l_count
-      FROM posts p_inner
-      LEFT JOIN (SELECT post_id, COUNT(*) cnt FROM comments GROUP BY post_id) c ON c.post_id = p_inner.id
-      LEFT JOIN (SELECT post_id, COUNT(*) cnt FROM post_likes GROUP BY post_id) l ON l.post_id = p_inner.id
-    ) sub
-    WHERE p.id = sub.id;
-  `);
-
-  // Also sync counts in MongoDB for top 1000 sample posts
-  const topPgCounts = await query('SELECT id, like_count, comment_count FROM posts LIMIT 2000;');
-  const bulkMongoUpdates = topPgCounts.rows.map((r) => ({
-    updateOne: {
-      filter: { _id: r.id },
-      update: { $set: { likeCount: r.like_count, commentCount: r.comment_count } },
-    },
-  }));
-  if (bulkMongoUpdates.length > 0) {
-    await mongoDb.collection('posts').bulkWrite(bulkMongoUpdates);
-  }
 
   // ─────────────────────────────────────────────────────────────
   // 6. RECORD BENCHMARK METRIC & REPORT
