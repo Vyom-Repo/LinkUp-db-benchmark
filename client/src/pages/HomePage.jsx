@@ -1,10 +1,13 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { LogIn, UserPlus, ArrowRight } from 'lucide-react';
+import { Link, Navigate } from 'react-router-dom';
+import { LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function HomePage() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
+
+  if (isAuthenticated) {
+    return <Navigate to="/feed" replace />;
+  }
 
   return (
     <div style={{
@@ -60,69 +63,43 @@ export default function HomePage() {
           fluid conversations, and effortless synchronization across communities.
         </p>
 
-        {/* ONLY Login and Register Buttons (As strictly requested) */}
-        {!isAuthenticated ? (
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            gap: '1rem', 
-            flexWrap: 'wrap' 
-          }}>
-            <Link 
-              to="/login" 
-              className="btn btn-secondary" 
-              style={{ 
-                padding: '0.875rem 2.25rem', 
-                fontSize: '1rem',
-                borderRadius: 'var(--radius-md)',
-                minWidth: '150px',
-                boxShadow: 'var(--shadow-sm)'
-              }}
-            >
-              <LogIn size={18} />
-              <span>Log in</span>
-            </Link>
+        {/* ONLY Login and Register Buttons */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          gap: '1rem', 
+          flexWrap: 'wrap' 
+        }}>
+          <Link 
+            to="/login" 
+            className="btn btn-secondary" 
+            style={{ 
+              padding: '0.875rem 2.25rem', 
+              fontSize: '1rem',
+              borderRadius: 'var(--radius-md)',
+              minWidth: '150px',
+              boxShadow: 'var(--shadow-sm)'
+            }}
+          >
+            <LogIn size={18} />
+            <span>Log in</span>
+          </Link>
 
-            <Link 
-              to="/register" 
-              className="btn btn-primary" 
-              style={{ 
-                padding: '0.875rem 2.25rem', 
-                fontSize: '1rem',
-                borderRadius: 'var(--radius-md)',
-                minWidth: '150px'
-              }}
-            >
-              <UserPlus size={18} />
-              <span>Register</span>
-            </Link>
-          </div>
-        ) : (
-          <div style={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
-            gap: '1rem' 
-          }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-              Welcome back, <strong>{user.name}</strong>.
-            </p>
-            <Link 
-              to="/feed" 
-              className="btn btn-primary" 
-              style={{ 
-                padding: '0.875rem 2.25rem', 
-                fontSize: '1rem',
-                borderRadius: 'var(--radius-md)'
-              }}
-            >
-              <span>Go to Social Feed</span>
-              <ArrowRight size={18} />
-            </Link>
-          </div>
-        )}
-
+          <Link 
+            to="/register" 
+            className="btn btn-primary" 
+            style={{ 
+              padding: '0.875rem 2.25rem', 
+              fontSize: '1rem',
+              borderRadius: 'var(--radius-md)',
+              minWidth: '150px'
+            }}
+          >
+            <UserPlus size={18} />
+            <span>Register</span>
+          </Link>
+        </div>
       </div>
     </div>
   );

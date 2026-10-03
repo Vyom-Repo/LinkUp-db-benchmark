@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Trash2, Send, Clock } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
@@ -13,7 +14,9 @@ export default function PostCard({ post, onPostDeleted }) {
   const [loadingComments, setLoadingComments] = useState(false);
   const [newCommentText, setNewCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [heartAnim, setHeartAnim] = useState(false);
 
   const canDelete = user && (user.id === post.author_id || user.isAdmin);
 
@@ -23,15 +26,15 @@ export default function PostCard({ post, onPostDeleted }) {
       return;
     }
 
-    const previousLiked = liked;
-    const previousCount = likeCount;
+    const prevLiked = liked;
+    const prevCount = likeCount;
 
     // Optimistic UI update
-    setLiked(!previousLiked);
-    setLikeCount(previousLiked ? Math.max(0, previousCount - 1) : previousCount + 1);
+    setLiked(!prevLiked);
+    setLikeCount(prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1);
 
     try {
-      if (previousLiked) {
+      if (prevLiked) {
         const res = await api.delete(`/posts/${post.id}/like`);
         if (res.data.success) {
           setLikeCount(res.data.data.likeCount);
@@ -42,11 +45,18 @@ export default function PostCard({ post, onPostDeleted }) {
           setLikeCount(res.data.data.likeCount);
         }
       }
-    } catch (err) {
-      // Revert on error
-      setLiked(previousLiked);
-      setLikeCount(previousCount);
+    } catch {
+      setLiked(prevLiked);
+      setLikeCount(prevCount);
     }
+  };
+
+  const handleDoubleTap = () => {
+    if (!liked) {
+      toggleLike();
+    }
+    setHeartAnim(true);
+    setTimeout(() => setHeartAnim(false), 800);
   };
 
   const loadComments = async () => {
@@ -66,7 +76,7 @@ export default function PostCard({ post, onPostDeleted }) {
 
   const handleAddComment = async (e) => {
     e.preventDefault();
-    if (!newCommentText.trim()) return;
+    if (!newCommentText.trim() || submittingComment) return;
     if (!isAuthenticated) {
       alert('Please log in to comment.');
       return;
@@ -79,6 +89,7 @@ export default function PostCard({ post, onPostDeleted }) {
         setComments([...comments, res.data.data.comment]);
         setCommentCount(commentCount + 1);
         setNewCommentText('');
+        if (!showComments) setShowComments(true);
       }
     } finally {
       setSubmittingComment(false);
@@ -86,198 +97,391 @@ export default function PostCard({ post, onPostDeleted }) {
   };
 
   const handleDeletePost = async () => {
-    if (!window.confirm('Are you sure you want to delete this post?')) return;
-    setDeleting(true);
+    if (!window.confirm('Delete this post?')) return;
     try {
       const res = await api.delete(`/posts/${post.id}`);
-      if (res.data.success) {
-        if (onPostDeleted) onPostDeleted(post.id);
+      if (res.data.success && onPostDeleted) {
+        onPostDeleted(post.id);
       }
-    } finally {
-      setDeleting(false);
+    } catch (err) {
+      alert('Failed to delete post.');
     }
   };
 
-  const formatDate = (dateStr) => {
+  const handleShare = () => {
+    navigator.clipboard?.writeText(window.location.origin + `/posts/${post.id}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const formatRelativeTime = (dateStr) => {
     try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      const diffSec = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+      if (diffSec < 60) return 'Just now';
+      if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m`;
+      if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h`;
+      if (diffSec < 604800) return `${Math.floor(diffSec / 86400)}d`;
+      return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     } catch {
       return '';
     }
   };
 
   return (
-    <article className="glass-panel glass-panel-hover" style={{ padding: '1.25rem', marginBottom: '1.25rem' }}>
-      
-      {/* Post Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <img 
-            src={post.author_avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${post.author_username || 'user'}`} 
-            alt={post.author_name} 
-            style={{ width: '42px', height: '42px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)' }}
-          />
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{post.author_name}</span>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>@{post.author_username}</span>
+    <article 
+      className="glass-panel"
+      style={{
+        maxWidth: '470px',
+        margin: '0 auto 1.5rem auto',
+        backgroundColor: '#FFFFFF',
+        borderRadius: '14px',
+        border: '1px solid var(--border-color)',
+        overflow: 'hidden',
+        boxShadow: 'var(--shadow-md)',
+      }}
+    >
+      {/* 1. Header (User Info + Timestamp + Options) */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0.75rem 1rem',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <Link to={`/profile/${post.author_username}`} style={{ textDecoration: 'none' }}>
+            <div style={{
+              padding: '2px',
+              borderRadius: 'var(--radius-full)',
+              background: 'linear-gradient(45deg, #C5A059, #9A5B32)',
+              display: 'flex',
+            }}>
+              <img 
+                src={post.author_avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${post.author_username}`} 
+                alt={post.author_username}
+                style={{
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: 'var(--radius-full)',
+                  border: '2px solid #FFFFFF',
+                  objectFit: 'cover',
+                  display: 'block',
+                }}
+              />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-              <Clock size={12} />
-              <span>{formatDate(post.created_at)}</span>
-            </div>
+          </Link>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <Link 
+              to={`/profile/${post.author_username}`} 
+              style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)', textDecoration: 'none' }}
+            >
+              {post.author_username}
+            </Link>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>•</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.775rem' }}>
+              {formatRelativeTime(post.created_at)}
+            </span>
           </div>
         </div>
 
-        {canDelete && (
-          <button 
-            onClick={handleDeletePost} 
-            disabled={deleting}
-            className="btn btn-danger" 
-            style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem' }}
-            title="Delete post"
+        {/* 3-dots Menu */}
+        <div style={{ position: 'relative' }}>
+          <button
+            type="button"
+            onClick={() => setShowMenu(!showMenu)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
           >
-            <Trash2 size={14} />
+            <MoreHorizontal size={18} />
           </button>
+
+          {showMenu && (
+            <div 
+              className="glass-panel"
+              style={{
+                position: 'absolute',
+                right: 0,
+                top: '100%',
+                backgroundColor: '#FFFFFF',
+                borderRadius: '8px',
+                padding: '0.35rem',
+                minWidth: '130px',
+                zIndex: 20,
+                boxShadow: 'var(--shadow-lg)',
+              }}
+            >
+              {canDelete && (
+                <button
+                  onClick={handleDeletePost}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    background: 'none',
+                    border: 'none',
+                    color: '#ef4444',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    textAlign: 'left',
+                    borderRadius: '4px',
+                  }}
+                >
+                  <Trash2 size={14} />
+                  <span>Delete</span>
+                </button>
+              )}
+              <button
+                onClick={handleShare}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  width: '100%',
+                  padding: '0.5rem 0.75rem',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  textAlign: 'left',
+                  borderRadius: '4px',
+                }}
+              >
+                <span>{copied ? 'Link Copied!' : 'Copy Link'}</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 2. Post Media / Visual Area */}
+      {post.image_url ? (
+        <div 
+          onDoubleClick={handleDoubleTap}
+          style={{ position: 'relative', width: '100%', backgroundColor: '#000', cursor: 'pointer', overflow: 'hidden' }}
+        >
+          <img 
+            src={post.image_url} 
+            alt="Post Visual" 
+            style={{ width: '100%', maxHeight: '480px', objectFit: 'cover', display: 'block' }}
+          />
+
+          {/* Animated Heart Overlay on Double Tap */}
+          {heartAnim && (
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%) scale(1.2)',
+              animation: 'pulseGlow 0.8s ease-out forwards',
+              color: '#FFFFFF',
+              filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))',
+            }}>
+              <Heart size={80} fill="#FFFFFF" />
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Text-Only Editorial Post Canvas */
+        <div 
+          onDoubleClick={handleDoubleTap}
+          style={{
+            position: 'relative',
+            padding: '2.5rem 1.75rem',
+            backgroundColor: '#FAF7F0',
+            borderTop: '1px solid #EFEAE0',
+            borderBottom: '1px solid #EFEAE0',
+            fontSize: '1.05rem',
+            lineHeight: '1.65',
+            color: 'var(--text-primary)',
+            fontStyle: 'normal',
+            cursor: 'pointer',
+          }}
+        >
+          {post.content}
+
+          {heartAnim && (
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              color: '#ef4444',
+            }}>
+              <Heart size={64} fill="#ef4444" />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 3. Action Buttons Bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0.65rem 1rem 0.35rem 1rem',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {/* Like Heart */}
+          <button
+            type="button"
+            onClick={toggleLike}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: liked ? '#ef4444' : 'var(--text-primary)',
+              padding: 0,
+              display: 'flex',
+              transition: 'transform 0.15s ease',
+            }}
+          >
+            <Heart size={24} fill={liked ? '#ef4444' : 'none'} strokeWidth={2} />
+          </button>
+
+          {/* Comment Bubble */}
+          <button
+            type="button"
+            onClick={loadComments}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-primary)',
+              padding: 0,
+              display: 'flex',
+            }}
+          >
+            <MessageCircle size={24} strokeWidth={2} />
+          </button>
+
+          {/* Share Icon */}
+          <button
+            type="button"
+            onClick={handleShare}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-primary)',
+              padding: 0,
+              display: 'flex',
+            }}
+          >
+            <Send size={22} strokeWidth={2} />
+          </button>
+        </div>
+
+        {/* Bookmark */}
+        <button
+          type="button"
+          onClick={() => alert('Post saved to collection')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', padding: 0 }}
+        >
+          <Bookmark size={22} strokeWidth={2} />
+        </button>
+      </div>
+
+      {/* 4. Like Count & Caption */}
+      <div style={{ padding: '0 1rem', marginBottom: '0.5rem' }}>
+        <div style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '0.35rem' }}>
+          {likeCount.toLocaleString()} {likeCount === 1 ? 'like' : 'likes'}
+        </div>
+
+        {/* If the post has an image, render the text caption below the image like IG */}
+        {post.image_url && (
+          <div style={{ fontSize: '0.875rem', lineHeight: '1.5' }}>
+            <Link 
+              to={`/profile/${post.author_username}`}
+              style={{ fontWeight: 700, color: 'var(--text-primary)', textDecoration: 'none', marginRight: '0.4rem' }}
+            >
+              {post.author_username}
+            </Link>
+            <span style={{ color: 'var(--text-primary)' }}>{post.content}</span>
+          </div>
         )}
       </div>
 
-      {/* Post Content */}
-      <div style={{ 
-        fontSize: '0.975rem', 
-        lineHeight: '1.6', 
-        color: 'var(--text-primary)',
-        whiteSpace: 'pre-wrap', 
-        marginBottom: '1rem' 
-      }}>
-        {post.content}
-      </div>
+      {/* 5. Comments Section */}
+      <div style={{ padding: '0 1rem 0.5rem 1rem' }}>
+        {commentCount > 0 && !showComments && (
+          <button
+            type="button"
+            onClick={loadComments}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-muted)',
+              fontSize: '0.825rem',
+              padding: 0,
+              marginBottom: '0.4rem',
+            }}
+          >
+            View all {commentCount.toLocaleString()} comments
+          </button>
+        )}
 
-      {/* Post Action Bar */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '1.5rem', 
-        borderTop: '1px solid var(--border-color)', 
-        paddingTop: '0.75rem' 
-      }}>
-        
-        {/* Like Button */}
-        <button 
-          onClick={toggleLike}
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.375rem',
-            background: 'transparent',
-            border: 'none',
-            color: liked ? '#ef4444' : 'var(--text-secondary)',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            transition: 'color 0.15s ease'
-          }}
-        >
-          <Heart size={18} fill={liked ? '#ef4444' : 'none'} />
-          <span>{likeCount.toLocaleString()}</span>
-        </button>
-
-        {/* Comment Button */}
-        <button 
-          onClick={loadComments}
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.375rem',
-            background: 'transparent',
-            border: 'none',
-            color: showComments ? 'var(--primary)' : 'var(--text-secondary)',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            transition: 'color 0.15s ease'
-          }}
-        >
-          <MessageCircle size={18} />
-          <span>{commentCount.toLocaleString()}</span>
-        </button>
-
-      </div>
-
-      {/* Comment Section (Expandable) */}
-      {showComments && (
-        <div style={{ 
-          marginTop: '1rem', 
-          paddingTop: '1rem', 
-          borderTop: '1px solid rgba(255, 255, 255, 0.05)' 
-        }} className="animate-fade-in">
-          
-          {/* New Comment Input */}
-          <form onSubmit={handleAddComment} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-            <input 
-              type="text" 
-              placeholder="Write a comment..." 
-              value={newCommentText}
-              onChange={(e) => setNewCommentText(e.target.value)}
-              className="form-input"
-              style={{ padding: '0.5rem 0.75rem', fontSize: '0.875rem' }}
-            />
-            <button 
-              type="submit" 
-              disabled={submittingComment || !newCommentText.trim()}
-              className="btn btn-primary"
-              style={{ padding: '0.5rem 1rem' }}
-            >
-              <Send size={15} />
-            </button>
-          </form>
-
-          {/* Comment Thread List */}
-          {loadingComments ? (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '0.75rem' }}>
-              Loading comments...
-            </div>
-          ) : comments.length === 0 ? (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '0.5rem' }}>
-              No comments yet. Start the conversation!
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-              {comments.map((c) => (
-                <div 
-                  key={c.id} 
-                  style={{ 
-                    background: 'rgba(0, 0, 0, 0.25)', 
-                    borderRadius: 'var(--radius-md)', 
-                    padding: '0.625rem 0.875rem',
-                    border: '1px solid rgba(255, 255, 255, 0.03)'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>{c.author_name}</span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>@{c.author_username}</span>
-                    </div>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
-                      {formatDate(c.created_at)}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                    {c.content}
-                  </div>
+        {/* Expanded Comments List */}
+        {showComments && (
+          <div style={{ marginTop: '0.5rem', marginBottom: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            {loadingComments ? (
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Loading comments...</div>
+            ) : (
+              comments.map((c) => (
+                <div key={c.id} style={{ fontSize: '0.825rem', lineHeight: '1.4' }}>
+                  <strong style={{ marginRight: '0.4rem' }}>{c.author_username}</strong>
+                  <span style={{ color: 'var(--text-secondary)' }}>{c.content}</span>
                 </div>
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </div>
+        )}
+      </div>
 
-        </div>
-      )}
+      {/* 6. Inline "Add a Comment..." Input */}
+      <form 
+        onSubmit={handleAddComment}
+        style={{
+          borderTop: '1px solid #F0ECE4',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0.65rem 1rem',
+          backgroundColor: '#FFFFFF',
+        }}
+      >
+        <input 
+          type="text"
+          placeholder="Add a comment..."
+          value={newCommentText}
+          onChange={(e) => setNewCommentText(e.target.value)}
+          style={{
+            flex: 1,
+            border: 'none',
+            outline: 'none',
+            fontSize: '0.85rem',
+            background: 'transparent',
+            color: 'var(--text-primary)',
+          }}
+        />
+        <button
+          type="submit"
+          disabled={!newCommentText.trim() || submittingComment}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: newCommentText.trim() ? 'var(--primary)' : 'var(--text-muted)',
+            fontWeight: 700,
+            fontSize: '0.85rem',
+            cursor: newCommentText.trim() ? 'pointer' : 'default',
+            paddingLeft: '0.5rem',
+          }}
+        >
+          Post
+        </button>
+      </form>
 
     </article>
   );

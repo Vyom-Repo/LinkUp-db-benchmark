@@ -13,12 +13,13 @@ class MongoPostRepository {
     return getDb().collection('post_likes');
   }
 
-  async create({ id, authorId, content }) {
+  async create({ id, authorId, content, imageUrl = '' }) {
     const now = new Date();
     const doc = {
       _id: id,
       authorId,
       content,
+      imageUrl: imageUrl || '',
       likeCount: 0,
       commentCount: 0,
       createdAt: now,
@@ -29,6 +30,7 @@ class MongoPostRepository {
       id: doc._id,
       author_id: doc.authorId,
       content: doc.content,
+      image_url: doc.imageUrl,
       like_count: doc.likeCount,
       comment_count: doc.commentCount,
       created_at: doc.createdAt,
@@ -53,6 +55,7 @@ class MongoPostRepository {
           id: '$_id',
           author_id: '$authorId',
           content: 1,
+          image_url: '$imageUrl',
           like_count: '$likeCount',
           comment_count: '$commentCount',
           created_at: '$createdAt',
@@ -93,6 +96,7 @@ class MongoPostRepository {
           id: '$_id',
           author_id: '$authorId',
           content: 1,
+          image_url: '$imageUrl',
           like_count: '$likeCount',
           comment_count: '$commentCount',
           created_at: '$createdAt',
@@ -127,6 +131,7 @@ class MongoPostRepository {
           id: '$_id',
           author_id: '$authorId',
           content: 1,
+          image_url: '$imageUrl',
           like_count: '$likeCount',
           comment_count: '$commentCount',
           created_at: '$createdAt',
@@ -155,6 +160,7 @@ class MongoPostRepository {
       id: res._id,
       author_id: res.authorId,
       content: res.content,
+      image_url: res.imageUrl,
       like_count: res.likeCount,
       comment_count: res.commentCount,
       created_at: res.createdAt,
@@ -166,7 +172,6 @@ class MongoPostRepository {
     const filter = isAdmin ? { _id: id } : { _id: id, authorId };
     const res = await this.collection.deleteOne(filter);
     if (res.deletedCount > 0) {
-      // In MongoDB, cascade cleanup is handled at application layer
       await this.commentsCollection.deleteMany({ postId: id });
       await this.likesCollection.deleteMany({ postId: id });
       return true;
@@ -194,6 +199,7 @@ class MongoPostRepository {
           id: '$_id',
           author_id: '$authorId',
           content: 1,
+          image_url: '$imageUrl',
           like_count: '$likeCount',
           comment_count: '$commentCount',
           created_at: '$createdAt',
@@ -235,6 +241,7 @@ class MongoPostRepository {
         $project: {
           id: '$_id',
           content: 1,
+          image_url: '$imageUrl',
           like_count: '$likeCount',
           comment_count: '$commentCount',
           created_at: '$createdAt',

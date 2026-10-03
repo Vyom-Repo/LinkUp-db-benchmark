@@ -4,7 +4,7 @@ const systemState = require('../config/state');
 
 const createPost = async (req, res, next) => {
   try {
-    const { content } = req.body;
+    const { content, imageUrl } = req.body;
     if (!content || !content.trim()) {
       return res.status(400).json({
         success: false,
@@ -20,6 +20,7 @@ const createPost = async (req, res, next) => {
       id: postId,
       authorId: req.user.id,
       content: content.trim(),
+      imageUrl: imageUrl || '',
     });
 
     res.status(201).json({

@@ -1,20 +1,20 @@
 const { query } = require('../../config/postgres');
 
 class PgPostRepository {
-  async create({ id, authorId, content }) {
+  async create({ id, authorId, content, imageUrl = '' }) {
     const sql = `
-      INSERT INTO posts (id, author_id, content, like_count, comment_count, created_at, updated_at)
-      VALUES ($1, $2, $3, 0, 0, NOW(), NOW())
-      RETURNING id, author_id, content, like_count, comment_count, created_at, updated_at;
+      INSERT INTO posts (id, author_id, content, image_url, like_count, comment_count, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, 0, 0, NOW(), NOW())
+      RETURNING id, author_id, content, image_url, like_count, comment_count, created_at, updated_at;
     `;
-    const res = await query(sql, [id, authorId, content]);
+    const res = await query(sql, [id, authorId, content, imageUrl]);
     return res.rows[0];
   }
 
   async findById(id) {
     const sql = `
       SELECT 
-        p.id, p.content, p.like_count, p.comment_count, p.created_at, p.updated_at,
+        p.id, p.content, p.image_url, p.like_count, p.comment_count, p.created_at, p.updated_at,
         p.author_id, u.name as author_name, u.username as author_username, u.avatar_url as author_avatar
       FROM posts p
       JOIN users u ON p.author_id = u.id
@@ -34,7 +34,7 @@ class PgPostRepository {
 
     const sql = `
       SELECT 
-        p.id, p.content, p.like_count, p.comment_count, p.created_at, p.updated_at,
+        p.id, p.content, p.image_url, p.like_count, p.comment_count, p.created_at, p.updated_at,
         p.author_id, u.name as author_name, u.username as author_username, u.avatar_url as author_avatar
       FROM posts p
       JOIN users u ON p.author_id = u.id
@@ -48,7 +48,7 @@ class PgPostRepository {
   async getByAuthorId({ authorId, limit = 20, offset = 0 } = {}) {
     const sql = `
       SELECT 
-        p.id, p.content, p.like_count, p.comment_count, p.created_at, p.updated_at,
+        p.id, p.content, p.image_url, p.like_count, p.comment_count, p.created_at, p.updated_at,
         p.author_id, u.name as author_name, u.username as author_username, u.avatar_url as author_avatar
       FROM posts p
       JOIN users u ON p.author_id = u.id
@@ -65,7 +65,7 @@ class PgPostRepository {
       UPDATE posts
       SET content = $1, updated_at = NOW()
       WHERE id = $2 AND author_id = $3
-      RETURNING id, author_id, content, like_count, comment_count, created_at, updated_at;
+      RETURNING id, author_id, content, image_url, like_count, comment_count, created_at, updated_at;
     `;
     const res = await query(sql, [content, id, authorId]);
     return res.rows[0] || null;
@@ -88,7 +88,7 @@ class PgPostRepository {
   async search({ queryText, limit = 20, offset = 0 } = {}) {
     const sql = `
       SELECT 
-        p.id, p.content, p.like_count, p.comment_count, p.created_at, p.updated_at,
+        p.id, p.content, p.image_url, p.like_count, p.comment_count, p.created_at, p.updated_at,
         p.author_id, u.name as author_name, u.username as author_username, u.avatar_url as author_avatar,
         ts_rank(p.search_vector, plainto_tsquery('english', $1)) as rank
       FROM posts p
@@ -110,7 +110,7 @@ class PgPostRepository {
   async getTopEngaged(limit = 5) {
     const sql = `
       SELECT 
-        p.id, p.content, p.like_count, p.comment_count, p.created_at,
+        p.id, p.content, p.image_url, p.like_count, p.comment_count, p.created_at,
         u.username as author_username
       FROM posts p
       JOIN users u ON p.author_id = u.id

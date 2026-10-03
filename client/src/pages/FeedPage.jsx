@@ -1,26 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { useDatabase } from '../context/DatabaseContext';
+import { useAuth } from '../context/AuthContext';
 import PostCard from '../components/PostCard';
-import CreatePostBox from '../components/CreatePostBox';
+import CreatePostModal from '../components/CreatePostModal';
 import api from '../services/api';
-import { Flame, Clock, MessageSquare, TrendingUp, RefreshCw } from 'lucide-react';
+import { PlusSquare, RefreshCw, Flame, Clock, Sparkles } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+const ACTIVE_STORIES = [
+  { username: 'alex_photo', name: 'Alex', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=alex_photo' },
+  { username: 'clara_design', name: 'Clara', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=clara_design' },
+  { username: 'david_dev', name: 'David', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=david_dev' },
+  { username: 'elena_arch', name: 'Elena', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=elena_arch' },
+  { username: 'marcus_ai', name: 'Marcus', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=marcus_ai' },
+  { username: 'sophia_code', name: 'Sophia', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=sophia_code' },
+];
 
 export default function FeedPage() {
-  const { activeEngine, lastLatencyMs } = useDatabase();
+  const { activeEngine } = useDatabase();
+  const { user, isAuthenticated } = useAuth();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState('latest');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [topEngaged, setTopEngaged] = useState([]);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const fetchFeed = async (targetPage = 1, currentSort = sort, append = false) => {
     if (targetPage === 1) setLoading(true);
     else setLoadingMore(true);
 
     try {
-      const res = await api.get(`/posts?limit=20&page=${targetPage}&sort=${currentSort}`);
+      const res = await api.get(`/posts?limit=15&page=${targetPage}&sort=${currentSort}`);
       if (res.data.success) {
         const fetchedPosts = res.data.data.posts;
         if (append) {
@@ -28,7 +40,7 @@ export default function FeedPage() {
         } else {
           setPosts(fetchedPosts);
         }
-        setHasMore(fetchedPosts.length === 20);
+        setHasMore(fetchedPosts.length === 15);
         setPage(targetPage);
       }
     } catch (err) {
@@ -39,7 +51,6 @@ export default function FeedPage() {
     }
   };
 
-  // Re-fetch on sort change or when active engine changes!
   useEffect(() => {
     fetchFeed(1, sort, false);
   }, [sort, activeEngine]);
@@ -59,161 +70,214 @@ export default function FeedPage() {
   };
 
   return (
-    <div className="container">
-      <div className="content-grid">
-        
-        {/* Left Sidebar: Navigation & Quick Filters */}
-        <aside className="sidebar-left">
-          <div className="glass-panel" style={{ padding: '1.25rem', position: 'sticky', top: '5rem' }}>
-            <h4 style={{ fontSize: '0.95rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>
-              Feed Feeds
-            </h4>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <button
-                onClick={() => setSort('latest')}
-                className="btn btn-secondary"
-                style={{
-                  justifyContent: 'flex-start',
-                  backgroundColor: sort === 'latest' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                  borderColor: sort === 'latest' ? 'var(--primary)' : 'transparent',
-                  color: sort === 'latest' ? '#fff' : 'var(--text-secondary)'
-                }}
-              >
-                <Clock size={16} />
-                <span>Chronological Feed</span>
-              </button>
-
-              <button
-                onClick={() => setSort('liked')}
-                className="btn btn-secondary"
-                style={{
-                  justifyContent: 'flex-start',
-                  backgroundColor: sort === 'liked' ? 'rgba(236, 72, 153, 0.15)' : 'transparent',
-                  borderColor: sort === 'liked' ? '#ec4899' : 'transparent',
-                  color: sort === 'liked' ? '#f472b6' : 'var(--text-secondary)'
-                }}
-              >
-                <Flame size={16} />
-                <span>Most Liked</span>
-              </button>
-
-              <button
-                onClick={() => setSort('commented')}
-                className="btn btn-secondary"
-                style={{
-                  justifyContent: 'flex-start',
-                  backgroundColor: sort === 'commented' ? 'rgba(6, 182, 212, 0.15)' : 'transparent',
-                  borderColor: sort === 'commented' ? '#06b6d4' : 'transparent',
-                  color: sort === 'commented' ? '#22d3ee' : 'var(--text-secondary)'
-                }}
-              >
-                <MessageSquare size={16} />
-                <span>Most Discussed</span>
-              </button>
+    <div className="container" style={{ maxWidth: '520px', paddingTop: '1.25rem', paddingBottom: '4rem' }}>
+      
+      {/* 1. Instagram Stories Tray */}
+      <div 
+        className="glass-panel"
+        style={{
+          padding: '0.85rem 1rem',
+          marginBottom: '1.5rem',
+          display: 'flex',
+          gap: '1rem',
+          overflowX: 'auto',
+          backgroundColor: '#FFFFFF',
+          borderRadius: '14px',
+          border: '1px solid var(--border-color)',
+        }}
+      >
+        {/* Your Story Avatar (Opens create modal) */}
+        {isAuthenticated && (
+          <div 
+            onClick={() => setIsCreateOpen(true)}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', flexShrink: 0 }}
+          >
+            <div style={{
+              position: 'relative',
+              width: '56px',
+              height: '56px',
+              borderRadius: 'var(--radius-full)',
+              border: '2px dashed var(--primary)',
+              padding: '2px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <img 
+                src={user?.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${user?.username}`} 
+                alt="Your Story"
+                style={{ width: '46px', height: '46px', borderRadius: 'var(--radius-full)', objectFit: 'cover' }}
+              />
+              <div style={{
+                position: 'absolute',
+                bottom: 0,
+                right: 0,
+                background: 'var(--primary)',
+                color: '#fff',
+                borderRadius: 'var(--radius-full)',
+                width: '18px',
+                height: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '14px',
+                fontWeight: 800,
+                border: '2px solid #FFFFFF',
+              }}>
+                +
+              </div>
             </div>
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-primary)', fontWeight: 600 }}>Your Story</span>
           </div>
-        </aside>
+        )}
 
-        {/* Center: Main Stream */}
-        <main>
-          <CreatePostBox onPostCreated={handlePostCreated} />
-
-          {/* Header Bar with Latency */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <h2 style={{ fontSize: '1.25rem' }}>
-                {sort === 'latest' ? 'Recent Posts' : sort === 'liked' ? 'Trending by Likes' : 'Top Discussions'}
-              </h2>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                ({posts.length} visible)
-              </span>
+        {/* Stories from creators */}
+        {ACTIVE_STORIES.map((s) => (
+          <Link
+            key={s.username}
+            to={`/profile/${s.username}`}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '0.35rem',
+              textDecoration: 'none',
+              flexShrink: 0,
+            }}
+          >
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: 'var(--radius-full)',
+              background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)',
+              padding: '2.5px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <img 
+                src={s.avatar} 
+                alt={s.name}
+                style={{
+                  width: '47px',
+                  height: '47px',
+                  borderRadius: 'var(--radius-full)',
+                  border: '2px solid #FFFFFF',
+                  objectFit: 'cover',
+                  display: 'block',
+                }}
+              />
             </div>
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary)' }}>{s.name}</span>
+          </Link>
+        ))}
+      </div>
 
+      {/* 2. Top Post Composer Bar & Filter Tabs */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '1.25rem',
+        padding: '0 0.25rem',
+      }}>
+        {/* Filter Pills */}
+        <div style={{ display: 'flex', gap: '0.4rem' }}>
+          <button
+            onClick={() => setSort('latest')}
+            style={{
+              padding: '0.35rem 0.75rem',
+              borderRadius: 'var(--radius-full)',
+              border: 'none',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              backgroundColor: sort === 'latest' ? 'var(--text-primary)' : '#EFECE6',
+              color: sort === 'latest' ? '#FFFFFF' : 'var(--text-secondary)',
+            }}
+          >
+            Latest
+          </button>
+          <button
+            onClick={() => setSort('liked')}
+            style={{
+              padding: '0.35rem 0.75rem',
+              borderRadius: 'var(--radius-full)',
+              border: 'none',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              backgroundColor: sort === 'liked' ? 'var(--text-primary)' : '#EFECE6',
+              color: sort === 'liked' ? '#FFFFFF' : 'var(--text-secondary)',
+            }}
+          >
+            Popular
+          </button>
+        </div>
+
+        {/* New Post (+) Button */}
+        {isAuthenticated && (
+          <button
+            onClick={() => setIsCreateOpen(true)}
+            className="btn btn-primary"
+            style={{ padding: '0.45rem 0.95rem', fontSize: '0.825rem', borderRadius: 'var(--radius-full)' }}
+          >
+            <PlusSquare size={16} />
+            <span>New Post</span>
+          </button>
+        )}
+      </div>
+
+      {/* 3. The Instagram Posts Feed Stream */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--text-muted)' }}>
+          <div className="pulse-glow" style={{ fontSize: '1rem', fontWeight: 600 }}>Loading feed...</div>
+        </div>
+      ) : posts.length === 0 ? (
+        <div className="glass-panel" style={{ textAlign: 'center', padding: '3.5rem 1.5rem', borderRadius: '14px' }}>
+          <p style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem' }}>No posts yet</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+            Be the first to share a moment or thought with the community!
+          </p>
+          {isAuthenticated && (
             <button 
-              onClick={() => fetchFeed(1, sort, false)} 
-              className="btn btn-secondary" 
-              style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
-              title="Refresh Feed"
+              onClick={() => setIsCreateOpen(true)} 
+              className="btn btn-primary"
+              style={{ borderRadius: 'var(--radius-full)' }}
             >
-              <RefreshCw size={13} className={loading ? 'pulse-glow' : ''} />
-              <span>Refresh</span>
+              <PlusSquare size={16} />
+              <span>Create First Post</span>
             </button>
-          </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          {posts.map((post) => (
+            <PostCard key={post.id} post={post} onPostDeleted={handlePostDeleted} />
+          ))}
 
-          {/* Feed Content */}
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--text-muted)' }}>
-              <div className="pulse-glow" style={{ fontSize: '1.1rem', fontWeight: 600 }}>Loading posts from {activeEngine}...</div>
-            </div>
-          ) : posts.length === 0 ? (
-            <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-              <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>No posts found in this feed view.</p>
-              <p style={{ fontSize: '0.9rem' }}>Be the first to create a post or seed the database from the Admin Lab!</p>
-            </div>
-          ) : (
-            <div>
-              {posts.map((post) => (
-                <PostCard key={post.id} post={post} onPostDeleted={handlePostDeleted} />
-              ))}
-
-              {hasMore && (
-                <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-                  <button 
-                    onClick={loadMore} 
-                    disabled={loadingMore}
-                    className="btn btn-secondary"
-                    style={{ padding: '0.75rem 2rem' }}
-                  >
-                    {loadingMore ? 'Fetching older posts...' : 'Load More Posts'}
-                  </button>
-                </div>
-              )}
+          {hasMore && (
+            <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="btn btn-secondary"
+                style={{ padding: '0.65rem 2rem', borderRadius: 'var(--radius-full)', fontSize: '0.85rem' }}
+              >
+                {loadingMore ? 'Loading...' : 'Load more'}
+              </button>
             </div>
           )}
-        </main>
+        </div>
+      )}
 
-        {/* Right Sidebar: Active Database Telemetry Card */}
-        <aside className="sidebar-right">
-          <div className="glass-panel" style={{ padding: '1.25rem', position: 'sticky', top: '5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-              <TrendingUp size={18} style={{ color: 'var(--primary)' }} />
-              <h4 style={{ fontSize: '0.95rem' }}>Engine Telemetry</h4>
-            </div>
+      {/* Create Post Modal */}
+      <CreatePostModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onPostCreated={handlePostCreated}
+      />
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div style={{ 
-                background: 'rgba(0,0,0,0.25)', 
-                padding: '0.75rem', 
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-color)'
-              }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Active Datastore</div>
-                <div style={{ fontSize: '1rem', fontWeight: 700, color: activeEngine === 'postgres' ? '#60a5fa' : 'var(--mongo-green)' }}>
-                  {activeEngine === 'postgres' ? 'PostgreSQL (3NF)' : 'MongoDB (BSON)'}
-                </div>
-              </div>
-
-              <div style={{ 
-                background: 'rgba(0,0,0,0.25)', 
-                padding: '0.75rem', 
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-color)'
-              }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Roundtrip Latency</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: 800, fontFamily: 'JetBrains Mono, monospace' }}>
-                  {lastLatencyMs !== null ? `${lastLatencyMs} ms` : '—'}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ marginTop: '1.25rem', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-              Feed queries dynamically route to the selected database engine while maintaining identical post UUIDs.
-            </div>
-          </div>
-        </aside>
-
-      </div>
     </div>
   );
 }
