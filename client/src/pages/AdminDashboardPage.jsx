@@ -75,8 +75,8 @@ const architectureStudyData = {
 
 const flowDynamics = {
   normal: {
-    wireColor: '#8e918f',
-    particleColor: '#a8c7fa',
+    wireColor: '#94A3B8',
+    particleColor: '#2563EB',
     coreDur: '1.2s',
     sql1Dur: '1.4s',
     sql2Dur: '1.2s',
@@ -85,8 +85,8 @@ const flowDynamics = {
     mongo2Dur: '1.4s'
   },
   read: {
-    wireColor: '#00e5ff',
-    particleColor: '#00e5ff',
+    wireColor: '#06B6D4',
+    particleColor: '#0891B2',
     coreDur: '0.4s',
     sql1Dur: '0.5s',
     sql2Dur: '0.4s',
@@ -95,8 +95,8 @@ const flowDynamics = {
     mongo2Dur: '0.5s'
   },
   write: {
-    wireColor: '#ff5252',
-    particleColor: '#ff5252',
+    wireColor: '#EF4444',
+    particleColor: '#DC2626',
     coreDur: '0.8s',
     sql1Dur: '0.9s',
     sql2Dur: '0.8s',
@@ -1071,30 +1071,31 @@ export default function AdminDashboardPage() {
 
                 {/* Embedded Architectural Simulator */}
                 <div style={{
-                  backgroundColor: '#131314',
-                  color: '#e3e3e3',
+                  backgroundColor: '#FAF8F4',
+                  color: '#0F172A',
                   borderRadius: '16px',
-                  border: '1px solid #2A2A2D',
+                  border: '1px solid #E2E8F0',
                   padding: '24px 20px',
-                  boxShadow: '0 8px 30px rgba(0, 0, 0, 0.35)'
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)'
                 }}>
                   <style>{`
                     @keyframes pulse-metric {
-                      0% { border-color: #444746; }
-                      50% { border-color: #a8c7fa; }
-                      100% { border-color: #444746; }
+                      0% { border-color: #E2E8F0; }
+                      50% { border-color: #93C5FD; box-shadow: 0 0 12px rgba(147, 197, 253, 0.4); }
+                      100% { border-color: #E2E8F0; }
                     }
                     .pulse-metric-anim {
                       animation: pulse-metric 0.6s ease;
                     }
                     @keyframes alertGlow {
-                      0% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.6); border-color: #ff5252; }
-                      50% { box-shadow: 0 0 16px 4px rgba(255, 82, 82, 0.85); border-color: #ff5252; }
-                      100% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.6); border-color: #ff5252; }
+                      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); border-color: #EF4444; }
+                      50% { box-shadow: 0 0 16px 4px rgba(239, 68, 68, 0.45); border-color: #EF4444; }
+                      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); border-color: #EF4444; }
                     }
                     .warning-glow {
                       animation: alertGlow 1.2s infinite ease-in-out !important;
-                      border-color: #ff5252 !important;
+                      border-color: #EF4444 !important;
+                      background-color: #FEF2F2 !important;
                     }
                   `}</style>
 
@@ -1105,62 +1106,65 @@ export default function AdminDashboardPage() {
                         type="button"
                         onClick={() => handleSetDb('sql')}
                         style={{
-                          background: diagramDb === 'sql' ? 'rgba(168, 199, 250, 0.14)' : 'transparent',
-                          color: diagramDb === 'sql' ? '#a8c7fa' : '#c4c7c5',
-                          border: diagramDb === 'sql' ? '1px solid #a8c7fa' : '1px solid transparent',
+                          background: diagramDb === 'sql' ? '#EFF6FF' : '#FFFFFF',
+                          color: diagramDb === 'sql' ? '#1D4ED8' : '#64748B',
+                          border: diagramDb === 'sql' ? '1.5px solid #93C5FD' : '1px solid #E2E8F0',
                           padding: '8px 18px',
                           borderRadius: '20px',
                           fontSize: '13px',
                           cursor: 'pointer',
-                          fontWeight: 600,
+                          fontWeight: 700,
                           transition: 'all 0.2s',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '0.4rem'
+                          gap: '0.4rem',
+                          boxShadow: diagramDb === 'sql' ? '0 2px 8px rgba(37, 99, 235, 0.12)' : '0 1px 2px rgba(0, 0, 0, 0.04)'
                         }}
                       >
                         SQL Normalized (3 Tables)
                         {activeEngine === 'POSTGRES' && (
-                          <span style={{ fontSize: '10px', backgroundColor: 'rgba(168, 199, 250, 0.25)', padding: '1px 6px', borderRadius: '10px' }}>ACTIVE</span>
+                          <span style={{ fontSize: '10px', backgroundColor: '#DBEAFE', color: '#1D4ED8', padding: '1px 6px', borderRadius: '10px', fontWeight: 800 }}>ACTIVE</span>
                         )}
                       </button>
                       <button
                         type="button"
                         onClick={() => handleSetDb('mongo')}
                         style={{
-                          background: diagramDb === 'mongo' ? 'rgba(52, 211, 153, 0.14)' : 'transparent',
-                          color: diagramDb === 'mongo' ? '#34d399' : '#c4c7c5',
-                          border: diagramDb === 'mongo' ? '1px solid #34d399' : '1px solid transparent',
+                          background: diagramDb === 'mongo' ? '#ECFDF5' : '#FFFFFF',
+                          color: diagramDb === 'mongo' ? '#047857' : '#64748B',
+                          border: diagramDb === 'mongo' ? '1.5px solid #6EE7B7' : '1px solid #E2E8F0',
                           padding: '8px 18px',
                           borderRadius: '20px',
                           fontSize: '13px',
                           cursor: 'pointer',
-                          fontWeight: 600,
+                          fontWeight: 700,
                           transition: 'all 0.2s',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '0.4rem'
+                          gap: '0.4rem',
+                          boxShadow: diagramDb === 'mongo' ? '0 2px 8px rgba(16, 185, 129, 0.12)' : '0 1px 2px rgba(0, 0, 0, 0.04)'
                         }}
                       >
                         MongoDB Embedded Document
                         {activeEngine === 'MONGODB' && (
-                          <span style={{ fontSize: '10px', backgroundColor: 'rgba(52, 211, 153, 0.25)', padding: '1px 6px', borderRadius: '10px' }}>ACTIVE</span>
+                          <span style={{ fontSize: '10px', backgroundColor: '#D1FAE5', color: '#047857', padding: '1px 6px', borderRadius: '10px', fontWeight: 800 }}>ACTIVE</span>
                         )}
                       </button>
                     </div>
 
                     {/* Traffic Pattern Selection */}
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.6px', color: '#8e918f', fontWeight: 700 }}>
+                      <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.6px', color: '#64748B', fontWeight: 800 }}>
                         Simulated Traffic Pattern
                       </div>
                       <div style={{
                         display: 'flex',
                         gap: '8px',
-                        backgroundColor: '#1e1e1f',
+                        backgroundColor: '#FFFFFF',
                         padding: '6px',
                         borderRadius: '24px',
-                        border: '1px solid #444746',
+                        border: '1px solid #E2E8F0',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
                         flexWrap: 'wrap',
                         justifyContent: 'center'
                       }}>
@@ -1168,14 +1172,14 @@ export default function AdminDashboardPage() {
                           type="button"
                           onClick={() => handleSetTraffic('normal')}
                           style={{
-                            background: trafficPattern === 'normal' ? 'rgba(168, 199, 250, 0.15)' : 'transparent',
-                            color: trafficPattern === 'normal' ? '#a8c7fa' : '#c4c7c5',
-                            border: '1px solid transparent',
+                            background: trafficPattern === 'normal' ? '#F1F5F9' : 'transparent',
+                            color: trafficPattern === 'normal' ? '#0F172A' : '#64748B',
+                            border: trafficPattern === 'normal' ? '1px solid #CBD5E1' : '1px solid transparent',
                             padding: '6px 16px',
                             borderRadius: '20px',
                             fontSize: '12px',
                             cursor: 'pointer',
-                            fontWeight: 600,
+                            fontWeight: 700,
                             transition: 'all 0.2s'
                           }}
                         >
@@ -1185,14 +1189,14 @@ export default function AdminDashboardPage() {
                           type="button"
                           onClick={() => handleSetTraffic('read')}
                           style={{
-                            background: trafficPattern === 'read' ? 'rgba(0, 229, 255, 0.18)' : 'transparent',
-                            color: trafficPattern === 'read' ? '#00e5ff' : '#c4c7c5',
-                            border: '1px solid transparent',
+                            background: trafficPattern === 'read' ? '#ECFEFF' : 'transparent',
+                            color: trafficPattern === 'read' ? '#0891B2' : '#64748B',
+                            border: trafficPattern === 'read' ? '1px solid #67E8F9' : '1px solid transparent',
                             padding: '6px 16px',
                             borderRadius: '20px',
                             fontSize: '12px',
                             cursor: 'pointer',
-                            fontWeight: 600,
+                            fontWeight: 700,
                             transition: 'all 0.2s'
                           }}
                         >
@@ -1202,14 +1206,14 @@ export default function AdminDashboardPage() {
                           type="button"
                           onClick={() => handleSetTraffic('write')}
                           style={{
-                            background: trafficPattern === 'write' ? 'rgba(255, 82, 82, 0.18)' : 'transparent',
-                            color: trafficPattern === 'write' ? '#ff5252' : '#c4c7c5',
-                            border: '1px solid transparent',
+                            background: trafficPattern === 'write' ? '#FEF2F2' : 'transparent',
+                            color: trafficPattern === 'write' ? '#DC2626' : '#64748B',
+                            border: trafficPattern === 'write' ? '1px solid #FCA5A5' : '1px solid transparent',
                             padding: '6px 16px',
                             borderRadius: '20px',
                             fontSize: '12px',
                             cursor: 'pointer',
-                            fontWeight: 600,
+                            fontWeight: 700,
                             transition: 'all 0.2s'
                           }}
                         >
@@ -1221,71 +1225,76 @@ export default function AdminDashboardPage() {
                     {/* Metrics Grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px', marginTop: '4px' }}>
                       <div className={`metric-card ${metricPulse ? 'pulse-metric-anim' : ''}`} style={{
-                        backgroundColor: '#1e1e1f',
-                        border: '1px solid #444746',
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid #E2E8F0',
                         borderRadius: '12px',
                         padding: '14px 16px',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '4px',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
                         transition: 'border-color 0.3s ease'
                       }}>
-                        <div style={{ fontSize: '11px', color: '#8e918f', textTransform: 'uppercase', fontWeight: 700 }}>Avg Latency</div>
-                        <div style={{ fontSize: '18px', color: '#e3e3e3', fontWeight: 700 }}>{currentMetrics.lat}</div>
-                        <div style={{ fontSize: '12px', color: '#c4c7c5' }}>{currentMetrics.subLat}</div>
+                        <div style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>Avg Latency</div>
+                        <div style={{ fontSize: '18px', color: '#0F172A', fontWeight: 800 }}>{currentMetrics.lat}</div>
+                        <div style={{ fontSize: '12px', color: '#64748B' }}>{currentMetrics.subLat}</div>
                       </div>
                       <div className={`metric-card ${metricPulse ? 'pulse-metric-anim' : ''}`} style={{
-                        backgroundColor: '#1e1e1f',
-                        border: '1px solid #444746',
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid #E2E8F0',
                         borderRadius: '12px',
                         padding: '14px 16px',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '4px',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
                         transition: 'border-color 0.3s ease'
                       }}>
-                        <div style={{ fontSize: '11px', color: '#8e918f', textTransform: 'uppercase', fontWeight: 700 }}>I/O Fetch Cost</div>
-                        <div style={{ fontSize: '18px', color: '#e3e3e3', fontWeight: 700 }}>{currentMetrics.fet}</div>
-                        <div style={{ fontSize: '12px', color: '#c4c7c5' }}>{currentMetrics.subFet}</div>
+                        <div style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>I/O Fetch Cost</div>
+                        <div style={{ fontSize: '18px', color: '#0F172A', fontWeight: 800 }}>{currentMetrics.fet}</div>
+                        <div style={{ fontSize: '12px', color: '#64748B' }}>{currentMetrics.subFet}</div>
                       </div>
                       <div className={`metric-card ${metricPulse ? 'pulse-metric-anim' : ''}`} style={{
-                        backgroundColor: '#1e1e1f',
-                        border: '1px solid #444746',
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid #E2E8F0',
                         borderRadius: '12px',
                         padding: '14px 16px',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '4px',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
                         transition: 'border-color 0.3s ease'
                       }}>
-                        <div style={{ fontSize: '11px', color: '#8e918f', textTransform: 'uppercase', fontWeight: 700 }}>Max Throughput</div>
-                        <div style={{ fontSize: '18px', color: '#e3e3e3', fontWeight: 700 }}>{currentMetrics.thr}</div>
-                        <div style={{ fontSize: '12px', color: '#c4c7c5' }}>{currentMetrics.subThr}</div>
+                        <div style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>Max Throughput</div>
+                        <div style={{ fontSize: '18px', color: '#0F172A', fontWeight: 800 }}>{currentMetrics.thr}</div>
+                        <div style={{ fontSize: '12px', color: '#64748B' }}>{currentMetrics.subThr}</div>
                       </div>
                       <div className={`metric-card ${metricPulse ? 'pulse-metric-anim' : ''}`} style={{
-                        backgroundColor: '#1e1e1f',
-                        border: '1px solid #444746',
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid #E2E8F0',
                         borderRadius: '12px',
                         padding: '14px 16px',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '4px',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
                         transition: 'border-color 0.3s ease'
                       }}>
-                        <div style={{ fontSize: '11px', color: '#8e918f', textTransform: 'uppercase', fontWeight: 700 }}>Lock / Friction</div>
-                        <div style={{ fontSize: '18px', color: trafficPattern === 'write' ? '#ff5252' : '#e3e3e3', fontWeight: 700 }}>{currentMetrics.lck}</div>
-                        <div style={{ fontSize: '12px', color: '#c4c7c5' }}>{currentMetrics.subLck}</div>
+                        <div style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>Lock / Friction</div>
+                        <div style={{ fontSize: '18px', color: trafficPattern === 'write' ? '#DC2626' : '#0F172A', fontWeight: 800 }}>{currentMetrics.lck}</div>
+                        <div style={{ fontSize: '12px', color: '#64748B' }}>{currentMetrics.subLck}</div>
                       </div>
                     </div>
 
-                    {/* Node Diagram Engine */}
+                    {/* Node Diagram Engine Canvas */}
                     <div style={{
                       position: 'relative',
                       height: '380px',
                       width: '100%',
-                      backgroundColor: '#181819',
+                      backgroundColor: '#FFFFFF',
                       borderRadius: '16px',
-                      border: '1px solid #333536',
+                      border: '1px solid #E2E8F0',
+                      boxShadow: 'inset 0 1px 4px rgba(0, 0, 0, 0.02)',
                       overflow: 'hidden',
                       marginTop: '6px'
                     }}>
@@ -1300,13 +1309,13 @@ export default function AdminDashboardPage() {
                         <path
                           d="M 210 190 L 320 190"
                           stroke={currentFlow.wireColor}
-                          strokeWidth="1.5"
+                          strokeWidth="1.75"
                           strokeDasharray="4 4"
                           fill="none"
                           markerEnd="url(#arch-arrow)"
                           style={{ transition: 'stroke 0.4s ease' }}
                         />
-                        <circle r="4" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 5px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
+                        <circle r="4.5" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 4px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
                           <animateMotion key={`core-${trafficPattern}-${diagramDb}`} dur={currentFlow.coreDur} repeatCount="indefinite" path="M 210 190 L 320 190" />
                         </circle>
 
@@ -1317,13 +1326,13 @@ export default function AdminDashboardPage() {
                             <path
                               d="M 455 180 C 510 180, 510 70, 570 70"
                               stroke={currentFlow.wireColor}
-                              strokeWidth="1.5"
+                              strokeWidth="1.75"
                               strokeDasharray="4 4"
                               fill="none"
                               markerEnd="url(#arch-arrow)"
                               style={{ transition: 'stroke 0.4s ease' }}
                             />
-                            <circle r="3.5" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 5px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
+                            <circle r="4" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 4px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
                               <animateMotion key={`sql-1-${trafficPattern}`} dur={currentFlow.sql1Dur} repeatCount="indefinite" path="M 455 180 C 510 180, 510 70, 570 70" />
                             </circle>
 
@@ -1331,13 +1340,13 @@ export default function AdminDashboardPage() {
                             <path
                               d="M 455 190 L 570 190"
                               stroke={currentFlow.wireColor}
-                              strokeWidth="1.5"
+                              strokeWidth="1.75"
                               strokeDasharray="4 4"
                               fill="none"
                               markerEnd="url(#arch-arrow)"
                               style={{ transition: 'stroke 0.4s ease' }}
                             />
-                            <circle r="3.5" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 5px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
+                            <circle r="4" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 4px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
                               <animateMotion key={`sql-2-${trafficPattern}`} dur={currentFlow.sql2Dur} repeatCount="indefinite" path="M 455 190 L 570 190" />
                             </circle>
 
@@ -1345,13 +1354,13 @@ export default function AdminDashboardPage() {
                             <path
                               d="M 455 200 C 510 200, 510 310, 570 310"
                               stroke={currentFlow.wireColor}
-                              strokeWidth="1.5"
+                              strokeWidth="1.75"
                               strokeDasharray="4 4"
                               fill="none"
                               markerEnd="url(#arch-arrow)"
                               style={{ transition: 'stroke 0.4s ease' }}
                             />
-                            <circle r="3.5" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 5px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
+                            <circle r="4" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 4px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
                               <animateMotion key={`sql-3-${trafficPattern}`} dur={currentFlow.sql3Dur} repeatCount="indefinite" path="M 455 200 C 510 200, 510 310, 570 310" />
                             </circle>
                           </g>
@@ -1362,13 +1371,13 @@ export default function AdminDashboardPage() {
                             <path
                               d="M 455 190 C 510 190, 510 130, 570 130"
                               stroke={currentFlow.wireColor}
-                              strokeWidth="1.5"
+                              strokeWidth="1.75"
                               strokeDasharray="4 4"
                               fill="none"
                               markerEnd="url(#arch-arrow)"
                               style={{ transition: 'stroke 0.4s ease' }}
                             />
-                            <circle r="3.5" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 5px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
+                            <circle r="4" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 4px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
                               <animateMotion key={`mongo-1-${trafficPattern}`} dur={currentFlow.mongo1Dur} repeatCount="indefinite" path="M 455 190 C 510 190, 510 130, 570 130" />
                             </circle>
 
@@ -1376,13 +1385,13 @@ export default function AdminDashboardPage() {
                             <path
                               d="M 455 190 C 510 190, 510 250, 570 250"
                               stroke={currentFlow.wireColor}
-                              strokeWidth="1.5"
+                              strokeWidth="1.75"
                               strokeDasharray="4 4"
                               fill="none"
                               markerEnd="url(#arch-arrow)"
                               style={{ transition: 'stroke 0.4s ease' }}
                             />
-                            <circle r="3.5" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 5px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
+                            <circle r="4" fill={currentFlow.particleColor} style={{ filter: `drop-shadow(0 0 4px ${currentFlow.particleColor})`, transition: 'fill 0.4s ease' }}>
                               <animateMotion key={`mongo-2-${trafficPattern}`} dur={currentFlow.mongo2Dur} repeatCount="indefinite" path="M 455 190 C 510 190, 510 250, 570 250" />
                             </circle>
                           </g>
@@ -1405,13 +1414,13 @@ export default function AdminDashboardPage() {
                         fontSize: '13px',
                         lineHeight: 1.4,
                         transform: 'translate(-50%, -50%)',
-                        backgroundColor: '#131314',
-                        border: '1px solid #444746',
-                        color: '#e3e3e3',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)'
+                        backgroundColor: '#FAF8F4',
+                        border: '1.5px solid #CBD5E1',
+                        color: '#0F172A',
+                        boxShadow: '0 4px 14px rgba(0, 0, 0, 0.05)'
                       }}>
-                        <span style={{ fontWeight: 700 }}>Client / App</span>
-                        <div style={{ fontSize: '11px', color: '#8e918f', fontFamily: 'monospace', marginTop: '3px' }}>REST / GraphQL</div>
+                        <span style={{ fontWeight: 800 }}>Client / App</span>
+                        <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace', marginTop: '3px' }}>REST / GraphQL</div>
                       </div>
 
                       <div style={{
@@ -1419,11 +1428,13 @@ export default function AdminDashboardPage() {
                         left: '31%',
                         top: '48%',
                         fontSize: '11px',
-                        color: '#c4c7c5',
-                        backgroundColor: '#131314',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        border: '1px solid #333',
+                        fontWeight: 700,
+                        color: '#64748B',
+                        backgroundColor: '#FFFFFF',
+                        padding: '3px 9px',
+                        borderRadius: '6px',
+                        border: '1px solid #E2E8F0',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
                         zIndex: 3,
                         transform: 'translate(-50%, -50%)'
                       }}>
@@ -1446,13 +1457,13 @@ export default function AdminDashboardPage() {
                         fontSize: '13px',
                         lineHeight: 1.4,
                         transform: 'translate(-50%, -50%)',
-                        backgroundColor: diagramDb === 'sql' ? '#0b57d0' : '#0f9d58',
+                        backgroundColor: diagramDb === 'sql' ? '#2563EB' : '#059669',
                         color: '#ffffff',
-                        boxShadow: diagramDb === 'sql' ? '0 0 16px rgba(11, 87, 208, 0.45)' : '0 0 16px rgba(15, 157, 88, 0.45)',
+                        boxShadow: diagramDb === 'sql' ? '0 4px 16px rgba(37, 99, 235, 0.35)' : '0 4px 16px rgba(5, 150, 105, 0.35)',
                         transition: 'background-color 0.3s ease, box-shadow 0.3s ease'
                       }}>
-                        <span style={{ fontWeight: 700 }}>{diagramDb === 'sql' ? 'SQL Engine' : 'MongoDB Engine'}</span>
-                        <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.75)', marginTop: '3px' }}>
+                        <span style={{ fontWeight: 800 }}>{diagramDb === 'sql' ? 'SQL Engine' : 'MongoDB Engine'}</span>
+                        <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.85)', marginTop: '3px' }}>
                           {diagramDb === 'sql' ? 'Query & JOINs' : 'Document Fetch'}
                         </div>
                       </div>
@@ -1460,13 +1471,13 @@ export default function AdminDashboardPage() {
                       {/* SQL Specific Nodes */}
                       {diagramDb === 'sql' ? (
                         <div>
-                          <div style={{ position: 'absolute', left: '60%', top: '30%', fontSize: '11px', color: '#c4c7c5', backgroundColor: '#131314', padding: '2px 6px', borderRadius: '4px', border: '1px solid #333', zIndex: 3, transform: 'translate(-50%, -50%)' }}>
+                          <div style={{ position: 'absolute', left: '60%', top: '30%', fontSize: '11px', fontWeight: 700, color: '#475569', backgroundColor: '#FFFFFF', padding: '3px 8px', borderRadius: '6px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)', zIndex: 3, transform: 'translate(-50%, -50%)' }}>
                             JOIN Users
                           </div>
-                          <div style={{ position: 'absolute', left: '60%', top: '50%', fontSize: '11px', color: '#c4c7c5', backgroundColor: '#131314', padding: '2px 6px', borderRadius: '4px', border: '1px solid #333', zIndex: 3, transform: 'translate(-50%, -50%)' }}>
+                          <div style={{ position: 'absolute', left: '60%', top: '50%', fontSize: '11px', fontWeight: 700, color: '#475569', backgroundColor: '#FFFFFF', padding: '3px 8px', borderRadius: '6px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)', zIndex: 3, transform: 'translate(-50%, -50%)' }}>
                             SELECT Posts
                           </div>
-                          <div style={{ position: 'absolute', left: '60%', top: '70%', fontSize: '11px', color: '#c4c7c5', backgroundColor: '#131314', padding: '2px 6px', borderRadius: '4px', border: '1px solid #333', zIndex: 3, transform: 'translate(-50%, -50%)' }}>
+                          <div style={{ position: 'absolute', left: '60%', top: '70%', fontSize: '11px', fontWeight: 700, color: '#475569', backgroundColor: '#FFFFFF', padding: '3px 8px', borderRadius: '6px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)', zIndex: 3, transform: 'translate(-50%, -50%)' }}>
                             JOIN Comments
                           </div>
 
@@ -1480,12 +1491,13 @@ export default function AdminDashboardPage() {
                             textAlign: 'center',
                             fontSize: '12px',
                             transform: 'translate(-50%, -50%)',
-                            backgroundColor: '#131314',
-                            border: '1px solid #444746',
-                            color: '#e3e3e3'
+                            backgroundColor: '#FAF8F4',
+                            border: '1.5px solid #CBD5E1',
+                            color: '#0F172A',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
                           }}>
-                            <span style={{ fontWeight: 700 }}>Users Table</span>
-                            <div style={{ fontSize: '11px', color: '#8e918f', fontFamily: 'monospace', marginTop: '3px' }}>id, username, avatar_url</div>
+                            <span style={{ fontWeight: 800 }}>Users Table</span>
+                            <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace', marginTop: '3px' }}>id, username, avatar_url</div>
                           </div>
 
                           <div style={{
@@ -1498,12 +1510,13 @@ export default function AdminDashboardPage() {
                             textAlign: 'center',
                             fontSize: '12px',
                             transform: 'translate(-50%, -50%)',
-                            backgroundColor: '#131314',
-                            border: '1px solid #444746',
-                            color: '#e3e3e3'
+                            backgroundColor: '#FAF8F4',
+                            border: '1.5px solid #CBD5E1',
+                            color: '#0F172A',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
                           }}>
-                            <span style={{ fontWeight: 700 }}>Posts Table</span>
-                            <div style={{ fontSize: '11px', color: '#8e918f', fontFamily: 'monospace', marginTop: '3px' }}>id, author_id, content, created_at</div>
+                            <span style={{ fontWeight: 800 }}>Posts Table</span>
+                            <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace', marginTop: '3px' }}>id, author_id, content, created_at</div>
                           </div>
 
                           <div className={trafficPattern === 'write' ? 'warning-glow' : ''} style={{
@@ -1516,22 +1529,23 @@ export default function AdminDashboardPage() {
                             textAlign: 'center',
                             fontSize: '12px',
                             transform: 'translate(-50%, -50%)',
-                            backgroundColor: '#131314',
-                            border: '1px solid #444746',
-                            color: '#e3e3e3',
+                            backgroundColor: trafficPattern === 'write' ? '#FEF2F2' : '#FAF8F4',
+                            border: trafficPattern === 'write' ? '1.5px solid #EF4444' : '1.5px solid #CBD5E1',
+                            color: '#0F172A',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
                             transition: 'all 0.3s ease'
                           }}>
-                            <span style={{ fontWeight: 700 }}>Comments Table</span>
-                            <div style={{ fontSize: '11px', color: '#8e918f', fontFamily: 'monospace', marginTop: '3px' }}>id, post_id, author_id, content</div>
+                            <span style={{ fontWeight: 800 }}>Comments Table</span>
+                            <div style={{ fontSize: '11px', color: trafficPattern === 'write' ? '#DC2626' : '#64748B', fontFamily: 'monospace', marginTop: '3px' }}>id, post_id, author_id, content</div>
                           </div>
                         </div>
                       ) : (
                         /* MongoDB Specific Nodes */
                         <div>
-                          <div style={{ position: 'absolute', left: '60%', top: '40%', fontSize: '11px', color: '#c4c7c5', backgroundColor: '#131314', padding: '2px 6px', borderRadius: '4px', border: '1px solid #333', zIndex: 3, transform: 'translate(-50%, -50%)' }}>
+                          <div style={{ position: 'absolute', left: '60%', top: '40%', fontSize: '11px', fontWeight: 700, color: '#475569', backgroundColor: '#FFFFFF', padding: '3px 8px', borderRadius: '6px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)', zIndex: 3, transform: 'translate(-50%, -50%)' }}>
                             Primary Fetch
                           </div>
-                          <div style={{ position: 'absolute', left: '60%', top: '60%', fontSize: '11px', color: '#c4c7c5', backgroundColor: '#131314', padding: '2px 6px', borderRadius: '4px', border: '1px solid #333', zIndex: 3, transform: 'translate(-50%, -50%)' }}>
+                          <div style={{ position: 'absolute', left: '60%', top: '60%', fontSize: '11px', fontWeight: 700, color: '#475569', backgroundColor: '#FFFFFF', padding: '3px 8px', borderRadius: '6px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)', zIndex: 3, transform: 'translate(-50%, -50%)' }}>
                             Overflow Fetch
                           </div>
 
@@ -1545,13 +1559,14 @@ export default function AdminDashboardPage() {
                             textAlign: 'center',
                             fontSize: '12px',
                             transform: 'translate(-50%, -50%)',
-                            backgroundColor: '#131314',
-                            border: '1px solid #444746',
-                            color: '#e3e3e3',
+                            backgroundColor: trafficPattern === 'write' ? '#FEF2F2' : '#FAF8F4',
+                            border: trafficPattern === 'write' ? '1.5px solid #EF4444' : '1.5px solid #CBD5E1',
+                            color: '#0F172A',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
                             transition: 'all 0.3s ease'
                           }}>
-                            <span style={{ fontWeight: 700 }}>Posts Collection</span>
-                            <div style={{ fontSize: '11px', color: '#8e918f', fontFamily: 'monospace', marginTop: '3px' }}>_id, content, comments:[{'{'}{'}'}]</div>
+                            <span style={{ fontWeight: 800 }}>Posts Collection</span>
+                            <div style={{ fontSize: '11px', color: trafficPattern === 'write' ? '#DC2626' : '#64748B', fontFamily: 'monospace', marginTop: '3px' }}>_id, content, comments:[{'{'}{'}'}]</div>
                           </div>
 
                           <div style={{
@@ -1564,12 +1579,13 @@ export default function AdminDashboardPage() {
                             textAlign: 'center',
                             fontSize: '12px',
                             transform: 'translate(-50%, -50%)',
-                            backgroundColor: '#131314',
-                            border: '1px solid #444746',
-                            color: '#e3e3e3'
+                            backgroundColor: '#FAF8F4',
+                            border: '1.5px solid #CBD5E1',
+                            color: '#0F172A',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
                           }}>
-                            <span style={{ fontWeight: 700 }}>Comments Collection</span>
-                            <div style={{ fontSize: '11px', color: '#8e918f', fontFamily: 'monospace', marginTop: '3px' }}>_id, postId, content</div>
+                            <span style={{ fontWeight: 800 }}>Comments Collection</span>
+                            <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace', marginTop: '3px' }}>_id, postId, content</div>
                           </div>
                         </div>
                       )}
@@ -1577,16 +1593,19 @@ export default function AdminDashboardPage() {
 
                     {/* Footer Description */}
                     <div style={{
-                      borderLeft: `3px solid ${diagramDb === 'sql' ? '#a8c7fa' : '#34d399'}`,
-                      paddingLeft: '16px',
-                      marginTop: '6px',
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: '12px',
+                      padding: '16px 20px',
+                      border: '1px solid #E2E8F0',
+                      borderLeft: `4px solid ${diagramDb === 'sql' ? '#2563EB' : '#059669'}`,
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
                       transition: 'border-color 0.3s ease'
                     }}>
-                      <div style={{ fontSize: '14px', color: '#e3e3e3', marginBottom: '6px', fontWeight: 700 }}>
+                      <div style={{ fontSize: '14px', color: '#0F172A', marginBottom: '6px', fontWeight: 800 }}>
                         {currentMetrics.title}
                       </div>
                       <div
-                        style={{ fontSize: '13px', color: '#c4c7c5', lineHeight: 1.55, maxWidth: '90%' }}
+                        style={{ fontSize: '13px', color: '#475569', lineHeight: 1.6, maxWidth: '95%' }}
                         dangerouslySetInnerHTML={{ __html: currentMetrics.desc }}
                       />
                     </div>
