@@ -23,17 +23,22 @@ export default function FeedPage() {
   const { user, token } = useAuth();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [newContent, setNewContent] = useState('');
   const [newImageUrl, setNewImageUrl] = useState('');
   const [publishing, setPublishing] = useState(false);
 
-  const fetchFeed = async () => {
-    setLoading(true);
+  const fetchFeed = async (showFullLoading = true) => {
+    if (showFullLoading) setLoading(true);
+    setRefreshing(true);
     try {
-      const res = await fetch('/api/posts?limit=25', {
+      // Use timestamp query to prevent any browser caching
+      const res = await fetch(`/api/posts?limit=30&_t=${Date.now()}`, {
         headers: {
           Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
         },
       });
       const data = await res.json();
@@ -44,12 +49,15 @@ export default function FeedPage() {
       console.error('Failed to load feed:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    fetchFeed();
-  }, []);
+    if (token) {
+      fetchFeed(true);
+    }
+  }, [token]);
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
@@ -71,10 +79,13 @@ export default function FeedPage() {
 
       const data = await res.json();
       if (data.success) {
+        // Prepend and refresh to ensure live sync with database
         setPosts((prev) => [data.data.post, ...prev]);
         setNewContent('');
         setNewImageUrl('');
         setIsComposerOpen(false);
+        // Refresh feed in background
+        fetchFeed(false);
       } else {
         alert(data.error?.message || 'Failed to publish post.');
       }
@@ -83,6 +94,10 @@ export default function FeedPage() {
     } finally {
       setPublishing(false);
     }
+  };
+
+  const handlePostDeleted = (deletedId) => {
+    setPosts((prev) => prev.filter((p) => p.id !== deletedId));
   };
 
   return (
@@ -186,7 +201,7 @@ export default function FeedPage() {
         ))}
       </div>
 
-      {/* 2. Top Feed Bar (New Post Button & Feed Refresh) */}
+      {/* 2. Top Feed Bar (Live Refresh Button & New Post) */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -194,18 +209,38 @@ export default function FeedPage() {
         marginBottom: '1.25rem',
         padding: '0 0.25rem',
       }}>
-        <div style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-          Student Feed
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+            Student Feed
+          </span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, backgroundColor: '#FAF8F4', padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)' }}>
+            {posts.length} {posts.length === 1 ? 'post' : 'posts'}
+          </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <button
-            onClick={fetchFeed}
+            onClick={() => fetchFeed(false)}
+            disabled={refreshing}
             className="btn btn-secondary"
-            style={{ padding: '0.45rem 0.65rem', borderRadius: 'var(--radius-full)', fontSize: '0.8rem' }}
+            style={{ 
+              padding: '0.45rem 0.65rem', 
+              borderRadius: 'var(--radius-full)', 
+              fontSize: '0.8rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem'
+            }}
             title="Refresh Feed"
           >
-            <RefreshCw size={14} />
+            <RefreshCw 
+              size={14} 
+              style={{
+                animation: refreshing ? 'spin 0.75s linear infinite' : 'none',
+                transition: 'transform 0.2s ease',
+              }} 
+            />
+            <span style={{ fontSize: '0.75rem' }}>{refreshing ? 'Updating...' : 'Refresh'}</span>
           </button>
 
           <button
@@ -260,7 +295,7 @@ export default function FeedPage() {
               <textarea
                 rows="4"
                 required
-                placeholder="What's on your mind? Share a thought or update..."
+                placeholder="What's on your mind? Share a thought, campus update, or question..."
                 value={newContent}
                 onChange={(e) => setNewContent(e.target.value)}
                 className="form-input"
@@ -357,7 +392,11 @@ export default function FeedPage() {
       ) : (
         <div>
           {posts.map((post) => (
-            <PostCard key={post.id} post={post} />
+            <PostCard 
+              key={post.id} 
+              post={post} 
+              onPostDeleted={handlePostDeleted}
+            />
           ))}
         </div>
       )}

@@ -37,6 +37,48 @@ const SAMPLE_POSTS = [
       { text: 'Love the aesthetic setup.' },
     ],
   },
+  {
+    content: 'Quick photography walk between classes. The geometry and brutalist arches of our university building.',
+    imageUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=1000&auto=format&fit=crop&q=80',
+    likes: 73,
+    comments: [
+      { text: 'Architectural shadows look fantastic.' },
+    ],
+  },
+  {
+    content: 'Just deployed the latest build of Sync! Latencies are under 1ms on local Postgres pools. Super excited to demo this to the professor.',
+    imageUrl: '',
+    likes: 91,
+    comments: [
+      { text: 'Huge milestone! Congrats 🎉' },
+      { text: 'Looking forward to seeing the live comparison.' },
+    ],
+  },
+  {
+    content: 'Late night brainstorming session on index optimization. B-tree indexes vs Hash indexes in high-concurrency environments.',
+    imageUrl: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1000&auto=format&fit=crop&q=80',
+    likes: 54,
+    comments: [
+      { text: 'B-tree wins for range queries every single time.' },
+    ],
+  },
+  {
+    content: 'Campus autumn breeze. Taking a quick 10-minute break before our afternoon lab session starts.',
+    imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1000&auto=format&fit=crop&q=80',
+    likes: 120,
+    comments: [
+      { text: 'Enjoy the fresh air!' },
+    ],
+  },
+  {
+    content: 'Question for the class: Are you guys structuring your repository pattern with interfaces or concrete adapter classes for ADBMS?',
+    imageUrl: '',
+    likes: 38,
+    comments: [
+      { text: 'Concrete adapter with dependency injection in app.js!' },
+      { text: 'Same here, makes switching engines seamless.' },
+    ],
+  },
 ];
 
 async function seedSamplePosts() {

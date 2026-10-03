@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from 'lucide-react';
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-export default function PostCard({ post }) {
+export default function PostCard({ post, onPostDeleted }) {
   const { token, user } = useAuth();
   const [liked, setLiked] = useState(post.is_liked_by_me || false);
   const [likeCount, setLikeCount] = useState(parseInt(post.like_count, 10) || 0);
@@ -15,12 +15,14 @@ export default function PostCard({ post }) {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [heartAnim, setHeartAnim] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+
+  const canDelete = user && (user.id === post.author_id || user.isAdmin);
 
   const toggleLike = async () => {
     const prevLiked = liked;
     const prevCount = likeCount;
 
-    // Optimistic UI update
     setLiked(!prevLiked);
     setLikeCount(prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1);
 
@@ -36,7 +38,6 @@ export default function PostCard({ post }) {
         setLiked(data.data.liked);
         setLikeCount(data.data.likeCount);
       } else {
-        // Revert on failure
         setLiked(prevLiked);
         setLikeCount(prevCount);
       }
@@ -58,7 +59,7 @@ export default function PostCard({ post }) {
     if (!showComments) {
       setLoadingComments(true);
       try {
-        const res = await fetch(`/api/posts/${post.id}/comments`, {
+        const res = await fetch(`/api/posts/${post.id}/comments?_t=${Date.now()}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -105,6 +106,26 @@ export default function PostCard({ post }) {
     }
   };
 
+  const handleDeletePost = async () => {
+    if (!window.confirm('Are you sure you want to delete this post?')) return;
+    try {
+      const res = await fetch(`/api/posts/${post.id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (onPostDeleted) onPostDeleted(post.id);
+      } else {
+        alert(data.error?.message || 'Failed to delete post.');
+      }
+    } catch {
+      alert('Error deleting post.');
+    }
+  };
+
   const handleShare = () => {
     navigator.clipboard?.writeText(window.location.origin + `/posts/${post.id}`);
     setCopied(true);
@@ -136,12 +157,13 @@ export default function PostCard({ post }) {
         boxShadow: 'var(--shadow-md)',
       }}
     >
-      {/* 1. Header (Author Avatar, Username & Time) */}
+      {/* 1. Header (Author Avatar, Username & Menu) */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0.75rem 1rem',
+        position: 'relative'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           <div style={{
@@ -175,13 +197,78 @@ export default function PostCard({ post }) {
           </div>
         </div>
 
-        <button 
-          onClick={handleShare}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
-          title={copied ? 'Link Copied!' : 'Share'}
-        >
-          <MoreHorizontal size={18} />
-        </button>
+        {/* 3-dots Menu Button */}
+        <div style={{ position: 'relative' }}>
+          <button 
+            type="button"
+            onClick={() => setShowMenu(!showMenu)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
+            title="Options"
+          >
+            <MoreHorizontal size={18} />
+          </button>
+
+          {showMenu && (
+            <div style={{
+              position: 'absolute',
+              right: 0,
+              top: '100%',
+              backgroundColor: '#FFFFFF',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              boxShadow: 'var(--shadow-lg)',
+              padding: '0.35rem',
+              zIndex: 30,
+              minWidth: '130px',
+            }}>
+              {canDelete && (
+                <button
+                  type="button"
+                  onClick={() => { setShowMenu(false); handleDeletePost(); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    width: '100%',
+                    padding: '0.5rem 0.65rem',
+                    background: 'none',
+                    border: 'none',
+                    color: '#dc2626',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                    textAlign: 'left'
+                  }}
+                >
+                  <Trash2 size={13} />
+                  <span>Delete Post</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => { setShowMenu(false); handleShare(); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  width: '100%',
+                  padding: '0.5rem 0.65rem',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  borderRadius: '4px',
+                  textAlign: 'left'
+                }}
+              >
+                <Send size={13} />
+                <span>{copied ? 'Link Copied!' : 'Copy Link'}</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 2. Visual / Editorial Canvas Area */}
@@ -196,7 +283,6 @@ export default function PostCard({ post }) {
             style={{ width: '100%', maxHeight: '480px', objectFit: 'cover', display: 'block' }}
           />
 
-          {/* Animated Heart Overlay on Double Tap */}
           {heartAnim && (
             <div style={{
               position: 'absolute',
@@ -212,7 +298,6 @@ export default function PostCard({ post }) {
           )}
         </div>
       ) : (
-        /* Text-Only Editorial Post Canvas */
         <div 
           onDoubleClick={handleDoubleTap}
           style={{
@@ -251,7 +336,6 @@ export default function PostCard({ post }) {
         padding: '0.65rem 1rem 0.35rem 1rem',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          {/* Like Heart */}
           <button
             type="button"
             onClick={toggleLike}
@@ -268,7 +352,6 @@ export default function PostCard({ post }) {
             <Heart size={24} fill={liked ? '#ef4444' : 'none'} strokeWidth={2} />
           </button>
 
-          {/* Comment Bubble */}
           <button
             type="button"
             onClick={loadComments}
@@ -284,7 +367,6 @@ export default function PostCard({ post }) {
             <MessageCircle size={24} strokeWidth={2} />
           </button>
 
-          {/* Share Icon */}
           <button
             type="button"
             onClick={handleShare}
@@ -302,7 +384,6 @@ export default function PostCard({ post }) {
           </button>
         </div>
 
-        {/* Bookmark */}
         <button
           type="button"
           onClick={() => alert('Post saved to collection!')}
@@ -318,7 +399,6 @@ export default function PostCard({ post }) {
           {likeCount.toLocaleString()} {likeCount === 1 ? 'like' : 'likes'}
         </div>
 
-        {/* If image post, render caption under image */}
         {post.image_url && (
           <div style={{ fontSize: '0.875rem', lineHeight: '1.5' }}>
             <strong style={{ marginRight: '0.4rem', color: 'var(--text-primary)' }}>
@@ -349,7 +429,6 @@ export default function PostCard({ post }) {
           </button>
         )}
 
-        {/* Expanded Comments List */}
         {showComments && (
           <div style={{ marginTop: '0.5rem', marginBottom: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             {loadingComments ? (

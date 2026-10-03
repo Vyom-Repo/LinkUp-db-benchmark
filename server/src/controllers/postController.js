@@ -34,6 +34,8 @@ async function getFeed(req, res) {
 
     const result = await query(sql, [currentUserId || null, limit, offset]);
 
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
     return res.json({
       success: true,
       data: {
@@ -292,10 +294,43 @@ async function addComment(req, res) {
   }
 }
 
+// 6. DELETE POST (DUAL-DELETE from PostgreSQL and MongoDB)
+async function deletePost(req, res) {
+  try {
+    const { id: postId } = req.params;
+    const userId = req.user.id;
+    const isAdmin = req.user.isAdmin;
+
+    const postRes = await query('SELECT author_id FROM posts WHERE id = $1', [postId]);
+    if (postRes.rows.length === 0) {
+      return res.status(404).json({ success: false, error: { message: 'Post not found.' } });
+    }
+
+    if (postRes.rows[0].author_id !== userId && !isAdmin) {
+      return res.status(403).json({ success: false, error: { message: 'You can only delete your own posts.' } });
+    }
+
+    // Delete in PostgreSQL
+    await query('DELETE FROM posts WHERE id = $1', [postId]);
+
+    // Delete in MongoDB
+    const mongoDb = getMongoDb();
+    await mongoDb.collection('posts').deleteOne({ _id: postId });
+    await mongoDb.collection('post_likes').deleteMany({ postId });
+    await mongoDb.collection('comments').deleteMany({ postId });
+
+    return res.json({ success: true, message: 'Post deleted successfully.' });
+  } catch (err) {
+    console.error('[deletePost Error]:', err);
+    return res.status(500).json({ success: false, error: { message: 'Failed to delete post.' } });
+  }
+}
+
 module.exports = {
   getFeed,
   createPost,
   toggleLike,
   getComments,
   addComment,
+  deletePost,
 };
