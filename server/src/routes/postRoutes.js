@@ -4,16 +4,20 @@ const { requireAuth } = require('../middleware/authMiddleware');
 const {
   getFeed,
   getPopularDiscussions,
+  searchPosts,
+  getPostById,
   createPost,
+  deletePost,
   toggleLike,
   getComments,
   addComment,
-  deletePost,
 } = require('../controllers/postController');
 
 // All post endpoints require active student login session
 router.get('/', requireAuth, getFeed);
 router.get('/popular', requireAuth, getPopularDiscussions);
+router.get('/search', requireAuth, searchPosts); // Declared BEFORE /:id to prevent route shadowing
+router.get('/:id', requireAuth, getPostById);
 router.post('/', requireAuth, createPost);
 router.delete('/:id', requireAuth, deletePost);
 router.post('/:id/like', requireAuth, toggleLike);
