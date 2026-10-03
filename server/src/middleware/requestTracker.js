@@ -1,81 +1,127 @@
 const { getActiveEngine } = require('../config/engineState');
 
-const recentRequests = [
-  { time: '16:42:31', operation: 'GET /api/posts', engine: 'MongoDB', status: 200, latencyMs: 7.2 },
-  { time: '16:42:29', operation: 'POST /api/posts', engine: 'MongoDB', status: 201, latencyMs: 11.4 },
-  { time: '16:42:26', operation: 'GET /api/posts/feed', engine: 'MongoDB', status: 200, latencyMs: 5.8 },
-  { time: '16:42:21', operation: 'POST /api/posts/:id/like', engine: 'MongoDB', status: 200, latencyMs: 9.1 },
-  { time: '16:42:15', operation: 'GET /api/users/profile', engine: 'PostgreSQL', status: 200, latencyMs: 6.4 },
-  { time: '16:42:08', operation: 'GET /api/posts/search', engine: 'PostgreSQL', status: 200, latencyMs: 8.9 },
-];
-
-let totalRequests = 1284;
-let totalErrors = 1;
-const latencies = [7.2, 11.4, 5.8, 9.1, 6.4, 8.9, 8.42, 14.21, 10.5, 6.8, 7.9, 12.1];
+// Separate request logs and latency samples per engine
+const engineData = {
+  POSTGRES: {
+    latencies: [],
+    requests: [],
+    totalRequests: 0,
+    totalErrors: 0,
+  },
+  MONGODB: {
+    latencies: [],
+    requests: [],
+    totalRequests: 0,
+    totalErrors: 0,
+  }
+};
 
 function trackRequest(req, res, next) {
+  // Do not track internal admin dashboard metrics polling to avoid skewing user metrics
   if (req.path.startsWith('/api/admin') || req.path === '/api/health') {
     return next();
   }
 
   const startHr = process.hrtime.bigint();
-  totalRequests++;
+  const currentEngineKey = getActiveEngine() === 'POSTGRES' ? 'POSTGRES' : 'MONGODB';
+  const engineBucket = engineData[currentEngineKey];
+
+  engineBucket.totalRequests++;
 
   res.on('finish', () => {
     const endHr = process.hrtime.bigint();
     const latencyMs = parseFloat((Number(endHr - startHr) / 1e6).toFixed(2));
     const now = new Date();
     const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const currentEngine = getActiveEngine() === 'POSTGRES' ? 'PostgreSQL' : 'MongoDB';
+    const currentEngineName = currentEngineKey === 'POSTGRES' ? 'PostgreSQL' : 'MongoDB';
 
     if (res.statusCode >= 400) {
-      totalErrors++;
+      engineBucket.totalErrors++;
     }
 
-    latencies.push(latencyMs);
-    if (latencies.length > 100) latencies.shift();
+    engineBucket.latencies.push(latencyMs);
+    if (engineBucket.latencies.length > 200) {
+      engineBucket.latencies.shift();
+    }
 
     const record = {
       time: timeStr,
       operation: `${req.method} ${req.baseUrl || ''}${req.path}`,
-      engine: currentEngine,
+      engine: currentEngineName,
       status: res.statusCode,
       latencyMs: latencyMs
     };
 
-    recentRequests.unshift(record);
-    if (recentRequests.length > 25) {
-      recentRequests.pop();
+    engineBucket.requests.unshift(record);
+    if (engineBucket.requests.length > 20) {
+      engineBucket.requests.pop();
     }
   });
 
   next();
 }
 
+function clearOnEngineSwitch(newEngine) {
+  const key = newEngine?.toUpperCase() === 'POSTGRES' ? 'POSTGRES' : 'MONGODB';
+  // Clear live stream for fresh recording on the newly selected engine
+  engineData[key].requests = [];
+  console.log(`[Request Tracker] Live stream cleared for newly activated engine: ${key}`);
+}
+
 function getPerformanceStats() {
-  const sorted = [...latencies].sort((a, b) => a - b);
-  const count = sorted.length || 1;
-  const currentLatency = latencies[latencies.length - 1] || 8.42;
-  const avgLatency = parseFloat((sorted.reduce((a, b) => a + b, 0) / count).toFixed(2));
-  const p50 = sorted[Math.floor(count * 0.5)] || 7.5;
-  const p95 = sorted[Math.floor(count * 0.95)] || 14.21;
-  const p99 = sorted[Math.floor(count * 0.99)] || 21.73;
+  const currentEngineKey = getActiveEngine() === 'POSTGRES' ? 'POSTGRES' : 'MONGODB';
+  const currentEngineName = currentEngineKey === 'POSTGRES' ? 'PostgreSQL' : 'MongoDB';
+  const bucket = engineData[currentEngineKey];
+
+  const latencies = bucket.latencies;
+  const count = latencies.length;
+
+  let currentLatency = 0;
+  let avgLatency = 0;
+  let p50 = 0;
+  let p95 = 0;
+  let p99 = 0;
+
+  if (count > 0) {
+    const sorted = [...latencies].sort((a, b) => a - b);
+    currentLatency = latencies[latencies.length - 1];
+    avgLatency = parseFloat((sorted.reduce((a, b) => a + b, 0) / count).toFixed(2));
+    p50 = sorted[Math.floor(count * 0.50)] || sorted[0];
+    p95 = sorted[Math.floor(count * 0.95)] || sorted[count - 1];
+    p99 = sorted[Math.floor(count * 0.99)] || sorted[count - 1];
+  } else {
+    // No requests recorded yet on this engine instance
+    currentLatency = null;
+    avgLatency = null;
+    p50 = null;
+    p95 = null;
+    p99 = null;
+  }
+
+  const totalReqs = bucket.totalRequests;
+  const totalErrs = bucket.totalErrors;
+  const errorRate = totalReqs > 0 ? parseFloat(((totalErrs / totalReqs) * 100).toFixed(2)) : 0.00;
+
+  // Filter requests strictly to the active engine only
+  const activeRequests = bucket.requests.filter(r => r.engine === currentEngineName);
 
   return {
-    currentLatency,
-    avgLatency,
-    p50,
-    p95,
-    p99,
-    throughput: 118,
-    requests: totalRequests,
-    errorRate: parseFloat(((totalErrors / totalRequests) * 100).toFixed(2)),
-    activeConnections: 6,
-    recentRequests
+    activeEngine: currentEngineName,
+    currentLatency: currentLatency !== null ? parseFloat(currentLatency.toFixed(2)) : null,
+    avgLatency: avgLatency !== null ? parseFloat(avgLatency.toFixed(2)) : null,
+    p50: p50 !== null ? parseFloat(p50.toFixed(2)) : null,
+    p95: p95 !== null ? parseFloat(p95.toFixed(2)) : null,
+    p99: p99 !== null ? parseFloat(p99.toFixed(2)) : null,
+    throughput: count > 0 ? Math.min(count, 120) : 0, // real ops observed
+    requests: totalReqs,
+    errors: totalErrs,
+    errorRate: errorRate,
+    recentRequests: activeRequests
   };
 }
 
 module.exports = {
   trackRequest,
+  clearOnEngineSwitch,
   getPerformanceStats
 };
