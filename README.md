@@ -265,14 +265,4 @@ Open your browser and navigate to:
 | **Full-Text Lexical Search** | Extremely Fast (GIN Index) | Competitive (Text Index) | PostgreSQL GIN indexes provide compact inverted postings lists with low query execution overhead. |
 | **Storage Footprint** | Compact Raw Data; Larger Indexes | Efficient Document Compression (Snappy) | WiredTiger applies block-level compression, resulting in lower raw disk consumption for text-heavy content. |
 
----
 
-## 9. Academic Attribution
-
-* **Institution:** Gujarat Technological University (GTU)
-* **Department:** Computer Engineering — Semester 5
-* **Courses:**
-  - Web Application Development (WAD)
-  - Advanced Database Management Systems (ADBMS)
-* **Lead Developer:** Vyom ([@Vyom-Repo](https://github.com/Vyom-Repo))
-* **License:** MIT License — Open for academic and research reference.
