@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Home, 
   Compass, 
@@ -6,14 +6,13 @@ import {
   Bookmark, 
   User, 
   TrendingUp, 
-  Sparkles, 
   RefreshCw, 
   Image as ImageIcon, 
   X, 
-  CheckCircle2,
   Activity,
   Layers,
-  MessageSquare
+  UploadCloud,
+  Link as LinkIcon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import PostCard from '../components/PostCard';
@@ -28,7 +27,7 @@ const TRENDING_TOPICS = [
 ];
 
 export default function FeedPage() {
-  const { user, token, logout } = useAuth();
+  const { user, token } = useAuth();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -37,8 +36,11 @@ export default function FeedPage() {
   // Inline Composer State
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
-  const [showImageInput, setShowImageInput] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const fileInputRef = useRef(null);
 
   const fetchFeed = async (showFullLoading = true) => {
     if (showFullLoading) setLoading(true);
@@ -73,6 +75,88 @@ export default function FeedPage() {
     }
   }, [token]);
 
+  // Helper to optimize and convert an image File/Blob into a crisp, lightweight Data URL
+  const processImageFile = (file) => {
+    if (!file || !file.type.startsWith('image/')) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 960;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        setImageUrl(optimizedDataUrl);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // 1. File Selection from PC
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processImageFile(file);
+    }
+    // reset input so same file can be re-selected if removed
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // 2. Clipboard Paste Handler (Ctrl+V / Cmd+V screenshot paste)
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of items) {
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        if (file) {
+          processImageFile(file);
+          break;
+        }
+      }
+    }
+  };
+
+  // 3. Drag and Drop Handlers
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      processImageFile(file);
+    }
+  };
+
   const handleCreatePost = async (e) => {
     e.preventDefault();
     if (!content.trim() || publishing) return;
@@ -96,7 +180,7 @@ export default function FeedPage() {
         setPosts((prev) => [data.data.post, ...prev]);
         setContent('');
         setImageUrl('');
-        setShowImageInput(false);
+        setShowUrlInput(false);
         fetchFeed(false);
       } else {
         alert(data.error?.message || 'Failed to publish post.');
@@ -312,8 +396,6 @@ export default function FeedPage() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              
-              {/* Subtle Live Latency Indicator */}
               {latencyMs !== null && (
                 <div 
                   title="Measured round-trip API latency for this query"
@@ -335,7 +417,6 @@ export default function FeedPage() {
                 </div>
               )}
 
-              {/* Refresh Button */}
               <button
                 onClick={() => fetchFeed(false)}
                 disabled={refreshing}
@@ -360,15 +441,30 @@ export default function FeedPage() {
             </div>
           </div>
 
-          {/* Persistent Discussion Composer (LinkedIn-Style) */}
-          <div style={{
-            backgroundColor: '#FFFFFF',
-            border: '1px solid var(--border-color)',
-            borderRadius: '12px',
-            padding: '1.25rem',
-            marginBottom: '1.25rem',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
+          {/* Persistent Discussion Composer (with PC Upload & Paste Support) */}
+          <div 
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: isDragging ? '2px dashed var(--primary)' : '1px solid var(--border-color)',
+              borderRadius: '12px',
+              padding: '1.25rem',
+              marginBottom: '1.25rem',
+              boxShadow: 'var(--shadow-sm)',
+              transition: 'border-color 0.2s ease',
+            }}
+          >
+            {/* Hidden File Input for PC upload */}
+            <input 
+              type="file" 
+              accept="image/*" 
+              ref={fileInputRef} 
+              style={{ display: 'none' }} 
+              onChange={handleFileSelect} 
+            />
+
             <form onSubmit={handleCreatePost}>
               <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
                 <img 
@@ -379,9 +475,10 @@ export default function FeedPage() {
                 <textarea
                   rows="3"
                   required
-                  placeholder={`What's on your mind, ${user?.name?.split(' ')[0] || 'there'}? Start a technical discussion or question...`}
+                  placeholder={`What's on your mind, ${user?.name?.split(' ')[0] || 'there'}? Write a discussion, question, or paste an image (Ctrl+V)...`}
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
+                  onPaste={handlePaste}
                   className="form-input"
                   style={{
                     border: '1px solid var(--border-color)',
@@ -393,13 +490,66 @@ export default function FeedPage() {
                 />
               </div>
 
-              {/* Optional Photo Attachment Input */}
-              {showImageInput && (
+              {/* Attached Image Preview from PC or URL */}
+              {imageUrl && (
+                <div style={{ 
+                  position: 'relative', 
+                  marginBottom: '0.85rem', 
+                  marginLeft: '46px', 
+                  borderRadius: '10px', 
+                  overflow: 'hidden', 
+                  border: '1px solid var(--border-color)',
+                  maxHeight: '260px',
+                  backgroundColor: '#000'
+                }}>
+                  <img 
+                    src={imageUrl} 
+                    alt="Attached preview" 
+                    style={{ width: '100%', maxHeight: '260px', objectFit: 'contain', display: 'block' }} 
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setImageUrl('')}
+                    style={{ 
+                      position: 'absolute', 
+                      top: '8px', 
+                      right: '8px', 
+                      background: 'rgba(28, 25, 23, 0.75)', 
+                      color: '#fff', 
+                      border: 'none', 
+                      borderRadius: '50%', 
+                      padding: '5px', 
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title="Remove attachment"
+                  >
+                    <X size={15} />
+                  </button>
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    left: '8px',
+                    backgroundColor: 'rgba(0,0,0,0.6)',
+                    color: '#fff',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '0.725rem'
+                  }}>
+                    Image attached from PC
+                  </div>
+                </div>
+              )}
+
+              {/* Optional URL Input if user prefers pasting web URL */}
+              {showUrlInput && (
                 <div style={{ marginBottom: '0.75rem', paddingLeft: '46px' }}>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                     <input 
                       type="url"
-                      placeholder="Paste image URL (optional)"
+                      placeholder="Paste image web URL (https://...)"
                       value={imageUrl}
                       onChange={(e) => setImageUrl(e.target.value)}
                       className="form-input"
@@ -407,7 +557,7 @@ export default function FeedPage() {
                     />
                     <button 
                       type="button" 
-                      onClick={() => { setShowImageInput(false); setImageUrl(''); }}
+                      onClick={() => { setShowUrlInput(false); }}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
                     >
                       <X size={16} />
@@ -418,28 +568,53 @@ export default function FeedPage() {
 
               {/* Bottom Actions Row */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: '46px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowImageInput(!showImageInput)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.825rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    padding: '0.35rem 0.5rem',
-                    borderRadius: '6px'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FAF8F4'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  <ImageIcon size={16} style={{ color: 'var(--primary)' }} />
-                  <span>{showImageInput ? 'Cancel Photo' : 'Add Photo'}</span>
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {/* Upload from PC Button */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      background: 'none',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.825rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: '0.35rem 0.7rem',
+                      borderRadius: '6px',
+                      backgroundColor: '#FAF8F4'
+                    }}
+                    title="Select image from your computer"
+                  >
+                    <UploadCloud size={15} style={{ color: 'var(--primary)' }} />
+                    <span>Upload from PC</span>
+                  </button>
+
+                  {/* Paste URL toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setShowUrlInput(!showUrlInput)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      padding: '0.35rem 0.5rem',
+                      borderRadius: '6px'
+                    }}
+                    title="Or link via Image URL"
+                  >
+                    <LinkIcon size={14} />
+                    <span>Image URL</span>
+                  </button>
+                </div>
 
                 <button
                   type="submit"
