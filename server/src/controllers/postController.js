@@ -71,14 +71,18 @@ async function createPost(req, res) {
     const cleanImageUrl = imageUrl ? imageUrl.trim() : null;
     const now = new Date();
 
-    // A. PostgreSQL
+    // A. PostgreSQL Insert (3NF Relational Model)
+    const t0Pg = process.hrtime.bigint();
     await query(
       `INSERT INTO posts (id, author_id, content, image_url, like_count, comment_count, created_at, updated_at)
        VALUES ($1, $2, $3, $4, 0, 0, $5, $5);`,
       [postId, authorId, cleanContent, cleanImageUrl, now]
     );
+    const t1Pg = process.hrtime.bigint();
+    const pgLatencyMs = Number(t1Pg - t0Pg) / 1e6;
 
-    // B. MongoDB
+    // B. MongoDB Insert (Document Model)
+    const t0Mongo = process.hrtime.bigint();
     const mongoDb = getMongoDb();
     await mongoDb.collection('posts').insertOne({
       _id: postId,
@@ -91,6 +95,10 @@ async function createPost(req, res) {
       createdAt: now,
       updatedAt: now,
     });
+    const t1Mongo = process.hrtime.bigint();
+    const mongoLatencyMs = Number(t1Mongo - t0Mongo) / 1e6;
+
+    console.log(`[Dual-Write Post] ✅ Created post ${postId} in BOTH PostgreSQL (${pgLatencyMs.toFixed(2)}ms) and MongoDB (${mongoLatencyMs.toFixed(2)}ms)`);
 
     // Fetch author details for immediate client display
     const userRes = await query('SELECT name, username, avatar_url FROM users WHERE id = $1', [authorId]);

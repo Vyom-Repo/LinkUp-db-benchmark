@@ -182,7 +182,6 @@ export default function FeedPage() {
         setContent('');
         setImageUrl('');
         setShowUrlInput(false);
-        fetchFeed(false);
       } else {
         alert(data.error?.message || 'Failed to publish post.');
       }

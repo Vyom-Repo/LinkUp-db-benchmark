@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   Home, 
@@ -19,7 +19,10 @@ import {
   ArrowLeft,
   Sparkles,
   ShieldCheck,
-  TrendingUp
+  TrendingUp,
+  UploadCloud,
+  Link as LinkIcon,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import PostCard from '../components/PostCard';
@@ -49,6 +52,15 @@ export default function ProfilePage() {
   const [editAvatarUrl, setEditAvatarUrl] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [editError, setEditError] = useState(null);
+
+  // Create Post Modal State (Dual-Database Execution)
+  const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
+  const [newPostContent, setNewPostContent] = useState('');
+  const [newPostImageUrl, setNewPostImageUrl] = useState('');
+  const [showNewPostUrlInput, setShowNewPostUrlInput] = useState(false);
+  const [publishingPost, setPublishingPost] = useState(false);
+  const [createPostError, setCreatePostError] = useState(null);
+  const postFileInputRef = useRef(null);
 
   const fetchProfile = async (uname) => {
     setLoading(true);
@@ -141,6 +153,97 @@ export default function ProfilePage() {
       setEditError('An unexpected network error occurred.');
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const processImageFile = (file) => {
+    if (!file || !file.type.startsWith('image/')) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 960;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        setNewPostImageUrl(optimizedDataUrl);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processImageFile(file);
+    }
+    if (postFileInputRef.current) postFileInputRef.current.value = '';
+  };
+
+  const handleCreateProfilePost = async (e) => {
+    e.preventDefault();
+    if (!newPostContent.trim() || publishingPost) return;
+
+    setPublishingPost(true);
+    setCreatePostError(null);
+
+    try {
+      const res = await fetch('/api/posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          content: newPostContent.trim(),
+          imageUrl: newPostImageUrl.trim() || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        // Dual-written in PostgreSQL & MongoDB; prepend to profile posts view
+        setProfile((prev) => ({
+          ...prev,
+          posts: [data.data.post, ...(prev.posts || [])],
+          stats: {
+            ...prev.stats,
+            posts: (prev.stats?.posts || 0) + 1,
+          },
+        }));
+
+        setNewPostContent('');
+        setNewPostImageUrl('');
+        setShowNewPostUrlInput(false);
+        setIsCreatePostModalOpen(false);
+        setActiveTab('posts');
+      } else {
+        setCreatePostError(data.error?.message || 'Failed to create post.');
+      }
+    } catch (err) {
+      console.error('Error creating post:', err);
+      setCreatePostError('Network error while publishing post.');
+    } finally {
+      setPublishingPost(false);
     }
   };
 
@@ -416,28 +519,47 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Own Profile Action: Edit Profile Button */}
+                {/* Own Profile Actions */}
                 {isOwnProfile && (
-                  <button 
-                    onClick={handleOpenEditModal}
-                    className="btn btn-secondary"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.45rem',
-                      padding: '0.55rem 1rem',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      borderRadius: '8px',
-                      backgroundColor: '#FFFFFF',
-                      borderColor: 'var(--border-color)',
-                      color: 'var(--text-primary)',
-                      boxShadow: 'var(--shadow-sm)'
-                    }}
-                  >
-                    <Edit3 size={15} />
-                    <span>Edit Profile</span>
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                    <button 
+                      onClick={() => setIsCreatePostModalOpen(true)}
+                      className="btn btn-primary"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        padding: '0.55rem 1rem',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        borderRadius: '8px',
+                      }}
+                    >
+                      <PlusCircle size={15} />
+                      <span>Create Post</span>
+                    </button>
+
+                    <button 
+                      onClick={handleOpenEditModal}
+                      className="btn btn-secondary"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        padding: '0.55rem 1rem',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        borderRadius: '8px',
+                        backgroundColor: '#FFFFFF',
+                        borderColor: 'var(--border-color)',
+                        color: 'var(--text-primary)',
+                        boxShadow: 'var(--shadow-sm)'
+                      }}
+                    >
+                      <Edit3 size={15} />
+                      <span>Edit Profile</span>
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -610,7 +732,7 @@ export default function ProfilePage() {
 
                     {isOwnProfile && (
                       <button
-                        onClick={() => navigate('/feed')}
+                        onClick={() => setIsCreatePostModalOpen(true)}
                         className="btn btn-primary"
                         style={{
                           marginTop: '0.5rem',
@@ -1081,6 +1203,304 @@ export default function ProfilePage() {
                     </>
                   )}
                 </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* ────────────────────────────────────────────── */}
+      {/* 7. CREATE POST MODAL (DUAL-DB PERSISTENCE)     */}
+      {/* ────────────────────────────────────────────── */}
+      {isCreatePostModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(28, 25, 23, 0.45)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '1rem'
+        }}>
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '16px',
+            border: '1px solid var(--border-color)',
+            width: '100%',
+            maxWidth: '520px',
+            boxShadow: 'var(--shadow-lg)',
+            overflow: 'hidden',
+            animation: 'fadeIn 0.15s ease'
+          }}>
+            {/* Hidden File Input for uploading from PC */}
+            <input 
+              type="file" 
+              accept="image/*" 
+              ref={postFileInputRef} 
+              style={{ display: 'none' }} 
+              onChange={handleFileSelect} 
+            />
+
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '1.25rem 1.5rem',
+              borderBottom: '1px solid var(--border-color)',
+              backgroundColor: '#FAF8F4'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <PlusCircle size={18} style={{ color: 'var(--primary)' }} />
+                <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Create Discussion
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreatePostModalOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '6px'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body Form */}
+            <form onSubmit={handleCreateProfilePost} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              
+              {createPostError && (
+                <div style={{
+                  padding: '0.65rem 0.85rem',
+                  backgroundColor: '#FEE2E2',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: '8px',
+                  fontSize: '0.825rem',
+                  color: '#991B1B'
+                }}>
+                  {createPostError}
+                </div>
+              )}
+
+              {/* Author Info Pill */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <img 
+                  src={avatarSrc} 
+                  alt={profile.name} 
+                  style={{ width: '34px', height: '34px', borderRadius: '8px', border: '1px solid var(--border-color)', objectFit: 'cover' }}
+                />
+                <div>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', display: 'block', lineHeight: 1.2 }}>
+                    {profile.name}
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Posting to LinkUp Community
+                  </span>
+                </div>
+              </div>
+
+              {/* Discussion Textarea */}
+              <textarea
+                rows={4}
+                required
+                autoFocus
+                placeholder="What technical insights, question, or update would you like to share?"
+                value={newPostContent}
+                onChange={(e) => setNewPostContent(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 0.85rem',
+                  fontSize: '0.925rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  outline: 'none',
+                  backgroundColor: '#FAF9F6',
+                  color: 'var(--text-primary)',
+                  resize: 'vertical',
+                  fontFamily: 'inherit'
+                }}
+              />
+
+              {/* Attached Image Preview */}
+              {newPostImageUrl && (
+                <div style={{
+                  position: 'relative',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: '#000',
+                  maxHeight: '220px'
+                }}>
+                  <img 
+                    src={newPostImageUrl} 
+                    alt="Attachment Preview" 
+                    style={{ width: '100%', maxHeight: '220px', objectFit: 'contain', display: 'block' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setNewPostImageUrl('')}
+                    style={{
+                      position: 'absolute',
+                      top: '6px',
+                      right: '6px',
+                      background: 'rgba(28, 25, 23, 0.75)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      borderRadius: '50%',
+                      padding: '4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title="Remove attachment"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              {/* URL Input Toggle */}
+              {showNewPostUrlInput && (
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input 
+                    type="url"
+                    placeholder="Paste image web URL (https://...)"
+                    value={newPostImageUrl}
+                    onChange={(e) => setNewPostImageUrl(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.55rem 0.75rem',
+                      fontSize: '0.825rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      outline: 'none',
+                      backgroundColor: '#FFFFFF',
+                      color: 'var(--text-primary)'
+                    }}
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowNewPostUrlInput(false)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
+
+              {/* Media Attachment Options */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingTop: '0.75rem',
+                borderTop: '1px solid #F0ECE4'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => postFileInputRef.current?.click()}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      background: 'none',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: '0.35rem 0.65rem',
+                      borderRadius: '6px',
+                      backgroundColor: '#FAF8F4'
+                    }}
+                    title="Select image from your computer"
+                  >
+                    <UploadCloud size={14} style={{ color: 'var(--primary)' }} />
+                    <span>Upload from PC</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPostUrlInput(!showNewPostUrlInput)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      padding: '0.35rem 0.5rem',
+                      borderRadius: '6px'
+                    }}
+                  >
+                    <LinkIcon size={14} />
+                    <span>Image URL</span>
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsCreatePostModalOpen(false)}
+                    disabled={publishingPost}
+                    className="btn btn-secondary"
+                    style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', borderRadius: '8px' }}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={publishingPost || !newPostContent.trim()}
+                    className="btn btn-primary"
+                    style={{
+                      padding: '0.5rem 1.25rem',
+                      fontSize: '0.85rem',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.45rem',
+                      opacity: publishingPost || !newPostContent.trim() ? 0.6 : 1
+                    }}
+                  >
+                    {publishingPost ? (
+                      <>
+                        <div style={{
+                          width: '14px',
+                          height: '14px',
+                          border: '2px solid rgba(255,255,255,0.4)',
+                          borderTopColor: '#FFFFFF',
+                          borderRadius: '50%',
+                          animation: 'spin 0.8s linear infinite'
+                        }} />
+                        <span>Publishing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <PlusCircle size={15} />
+                        <span>Publish Post</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
             </form>
