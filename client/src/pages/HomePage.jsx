@@ -13,17 +13,17 @@ export default function HomePage() {
       padding: '3rem 1.5rem',
       textAlign: 'center'
     }}>
-      <div style={{ maxWidth: '620px', width: '100%' }}>
+      <div style={{ maxWidth: '640px', width: '100%' }}>
         
         {/* Centered AI Monogram Logo */}
         <div style={{ marginBottom: '2rem' }}>
           <img 
             src="/logo.jpg" 
-            alt="Sync Logo" 
+            alt="LinkUp Logo" 
             style={{
-              width: '110px',
-              height: '110px',
-              borderRadius: '24px',
+              width: '105px',
+              height: '105px',
+              borderRadius: '22px',
               objectFit: 'cover',
               boxShadow: '0 16px 36px -6px rgba(44, 39, 32, 0.14), 0 4px 12px -2px rgba(44, 39, 32, 0.06)',
               border: '1px solid var(--border-color)',
@@ -39,22 +39,32 @@ export default function HomePage() {
           fontWeight: 800, 
           letterSpacing: '-0.04em', 
           color: 'var(--text-primary)',
-          marginBottom: '1rem',
+          marginBottom: '0.75rem',
           lineHeight: '1.1'
         }}>
-          Sync
+          LinkUp
         </h1>
 
-        {/* About Sync Statement */}
+        {/* Tagline & Statement */}
+        <p style={{
+          fontSize: '1.15rem',
+          fontWeight: 600,
+          color: 'var(--primary)',
+          marginBottom: '0.75rem',
+          letterSpacing: '-0.01em'
+        }}>
+          Connect, Share & Discuss
+        </p>
+
         <p style={{ 
-          fontSize: '1.2rem', 
+          fontSize: '1.1rem', 
           color: 'var(--text-secondary)', 
           lineHeight: '1.7', 
           marginBottom: '2.5rem',
           fontWeight: 400
         }}>
-          Sync is a modern, real-time social platform engineered for seamless communication, 
-          fluid conversations, and effortless synchronization across communities.
+          A modern community platform engineered for meaningful discussions, 
+          technical questions, project updates, and knowledge sharing.
         </p>
 
         {/* Strictly Only Login and Register Buttons */}

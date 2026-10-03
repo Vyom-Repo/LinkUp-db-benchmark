@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LogIn, UserPlus, LogOut, Radio } from 'lucide-react';
+import { LogIn, UserPlus, LogOut, Home, Compass, Search } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
@@ -20,15 +20,15 @@ export default function Navbar() {
       position: 'sticky',
       top: 0,
       zIndex: 50,
-      backgroundColor: 'rgba(248, 246, 240, 0.92)',
+      backgroundColor: 'rgba(255, 255, 255, 0.96)',
       backdropFilter: 'blur(12px)',
       WebkitBackdropFilter: 'blur(12px)',
       borderBottom: '1px solid var(--border-color)',
-      padding: '0.85rem 0'
+      padding: '0.75rem 0'
     }}>
       <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         
-        {/* Brand with AI Monogram Logo */}
+        {/* Brand */}
         <Link 
           to={isAuthenticated ? "/feed" : "/"} 
           style={{ 
@@ -41,63 +41,78 @@ export default function Navbar() {
         >
           <img 
             src="/logo.jpg" 
-            alt="Sync Logo" 
+            alt="LinkUp Logo" 
             style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '9px',
+              width: '34px',
+              height: '34px',
+              borderRadius: '8px',
               objectFit: 'cover',
-              boxShadow: '0 2px 8px rgba(44, 39, 32, 0.08)'
+              boxShadow: '0 2px 6px rgba(44, 39, 32, 0.08)'
             }} 
           />
-          <span style={{ fontSize: '1.35rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>
-            Sync
-          </span>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '1.3rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-primary)', lineHeight: 1.1 }}>
+              LinkUp
+            </span>
+          </div>
         </Link>
+
+        {/* Center: Search / Quick Nav when logged in */}
+        {isAuthenticated && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            backgroundColor: '#F7F5F0',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-full)',
+            padding: '0.35rem 0.85rem',
+            width: '100%',
+            maxWidth: '320px',
+            gap: '0.5rem'
+          }}>
+            <Search size={15} style={{ color: 'var(--text-muted)' }} />
+            <input 
+              type="text"
+              placeholder="Search discussions, topics, people..."
+              style={{
+                border: 'none',
+                background: 'transparent',
+                outline: 'none',
+                fontSize: '0.825rem',
+                width: '100%',
+                color: 'var(--text-primary)'
+              }}
+            />
+          </div>
+        )}
 
         {/* Right Section: Auth State Dependent */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {isAuthenticated ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              
-              {/* Feed Navigation Link */}
-              <Link
-                to="/feed"
-                className="btn btn-secondary"
-                style={{
-                  padding: '0.45rem 0.85rem',
-                  fontSize: '0.825rem',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: isCurrent('/feed') ? 'var(--primary-light)' : '#FFFFFF',
-                  borderColor: isCurrent('/feed') ? 'var(--primary)' : 'var(--border-color)',
-                  color: isCurrent('/feed') ? 'var(--primary)' : 'var(--text-primary)',
-                  fontWeight: 600,
-                }}
-              >
-                <Radio size={14} />
-                <span>Feed</span>
-              </Link>
-
-              {/* Student Profile Info */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
                 <img 
                   src={user?.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${user?.username || 'user'}`} 
                   alt={user?.name || 'User'} 
-                  style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)' }}
+                  style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid var(--border-color)' }}
                 />
-                <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {user?.name}
-                </span>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                    {user?.name}
+                  </span>
+                  <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
+                    @{user?.username}
+                  </span>
+                </div>
               </div>
 
-              {/* Complete Session Destruction Logout */}
               <button
                 onClick={handleLogout}
                 className="btn btn-secondary"
-                style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem', borderRadius: 'var(--radius-md)' }}
-                title="Destroy session and log out"
+                style={{ padding: '0.45rem 0.75rem', fontSize: '0.8rem', borderRadius: 'var(--radius-md)' }}
+                title="Log out"
               >
-                <LogOut size={14} />
+                <LogOut size={13} />
                 <span>Log out</span>
               </button>
             </div>

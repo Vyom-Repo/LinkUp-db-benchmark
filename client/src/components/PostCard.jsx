@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Heart, MessageSquare, Share2, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function PostCard({ post, onPostDeleted }) {
@@ -13,7 +13,6 @@ export default function PostCard({ post, onPostDeleted }) {
   const [loadingComments, setLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
-  const [heartAnim, setHeartAnim] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
@@ -45,14 +44,6 @@ export default function PostCard({ post, onPostDeleted }) {
       setLiked(prevLiked);
       setLikeCount(prevCount);
     }
-  };
-
-  const handleDoubleTap = () => {
-    if (!liked) {
-      toggleLike();
-    }
-    setHeartAnim(true);
-    setTimeout(() => setHeartAnim(false), 800);
   };
 
   const loadComments = async () => {
@@ -107,7 +98,7 @@ export default function PostCard({ post, onPostDeleted }) {
   };
 
   const handleDeletePost = async () => {
-    if (!window.confirm('Are you sure you want to delete this post?')) return;
+    if (!window.confirm('Are you sure you want to delete this discussion post?')) return;
     try {
       const res = await fetch(`/api/posts/${post.id}`, {
         method: 'DELETE',
@@ -136,9 +127,8 @@ export default function PostCard({ post, onPostDeleted }) {
     try {
       const diffSec = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
       if (diffSec < 60) return 'Just now';
-      if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m`;
-      if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h`;
-      if (diffSec < 604800) return `${Math.floor(diffSec / 86400)}d`;
+      if (diffSec < 3600) return `${Math.floor(diffSec / 60)}h`;
+      if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}d`;
       return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     } catch {
       return '';
@@ -148,52 +138,48 @@ export default function PostCard({ post, onPostDeleted }) {
   return (
     <article 
       style={{
-        maxWidth: '470px',
-        margin: '0 auto 1.5rem auto',
         backgroundColor: '#FFFFFF',
-        borderRadius: '14px',
+        borderRadius: '12px',
         border: '1px solid var(--border-color)',
-        overflow: 'hidden',
-        boxShadow: 'var(--shadow-md)',
+        marginBottom: '1rem',
+        boxShadow: 'var(--shadow-sm)',
+        transition: 'border-color 0.15s ease',
       }}
     >
-      {/* 1. Header (Author Avatar, Username & Menu) */}
+      {/* 1. Header (Author, Username, Time & Options) */}
       <div style={{
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'space-between',
-        padding: '0.75rem 1rem',
-        position: 'relative'
+        padding: '1.15rem 1.25rem 0.5rem 1.25rem',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-          <div style={{
-            padding: '2px',
-            borderRadius: 'var(--radius-full)',
-            background: 'linear-gradient(45deg, #C5A059, #9A5B32)',
-            display: 'flex',
-          }}>
-            <img 
-              src={post.author_avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${post.author_username}`} 
-              alt={post.author_username}
-              style={{
-                width: '34px',
-                height: '34px',
-                borderRadius: 'var(--radius-full)',
-                border: '2px solid #FFFFFF',
-                objectFit: 'cover',
-                display: 'block',
-              }}
-            />
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <img 
+            src={post.author_avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${post.author_username}`} 
+            alt={post.author_username}
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '8px',
+              objectFit: 'cover',
+              border: '1px solid var(--border-color)',
+              backgroundColor: '#FAF8F5'
+            }}
+          />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-              {post.author_username}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', lineHeight: 1.2 }}>
+              {post.author_name || post.author_username}
             </span>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>•</span>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.775rem' }}>
-              {formatRelativeTime(post.created_at)}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '2px' }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                @{post.author_username}
+              </span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>•</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                {formatRelativeTime(post.created_at)}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -202,7 +188,7 @@ export default function PostCard({ post, onPostDeleted }) {
           <button 
             type="button"
             onClick={() => setShowMenu(!showMenu)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px' }}
             title="Options"
           >
             <MoreHorizontal size={18} />
@@ -242,7 +228,7 @@ export default function PostCard({ post, onPostDeleted }) {
                   }}
                 >
                   <Trash2 size={13} />
-                  <span>Delete Post</span>
+                  <span>Delete</span>
                 </button>
               )}
               <button
@@ -263,7 +249,7 @@ export default function PostCard({ post, onPostDeleted }) {
                   textAlign: 'left'
                 }}
               >
-                <Send size={13} />
+                <Share2 size={13} />
                 <span>{copied ? 'Link Copied!' : 'Copy Link'}</span>
               </button>
             </div>
@@ -271,223 +257,217 @@ export default function PostCard({ post, onPostDeleted }) {
         </div>
       </div>
 
-      {/* 2. Visual / Editorial Canvas Area */}
-      {post.image_url ? (
-        <div 
-          onDoubleClick={handleDoubleTap}
-          style={{ position: 'relative', width: '100%', backgroundColor: '#000', cursor: 'pointer', overflow: 'hidden' }}
-        >
-          <img 
-            src={post.image_url} 
-            alt="Post" 
-            style={{ width: '100%', maxHeight: '480px', objectFit: 'cover', display: 'block' }}
-          />
+      {/* 2. Text-First Discussion Content */}
+      <div style={{
+        padding: '0.5rem 1.25rem 0.85rem 1.25rem',
+        fontSize: '0.965rem',
+        lineHeight: '1.65',
+        color: 'var(--text-primary)',
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+      }}>
+        {post.content}
+      </div>
 
-          {heartAnim && (
-            <div style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%) scale(1.2)',
-              animation: 'fadeIn 0.2s ease-out',
-              color: '#FFFFFF',
-              filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))',
-            }}>
-              <Heart size={80} fill="#FFFFFF" />
-            </div>
-          )}
-        </div>
-      ) : (
-        <div 
-          onDoubleClick={handleDoubleTap}
-          style={{
-            position: 'relative',
-            padding: '2.5rem 1.75rem',
-            backgroundColor: '#FAF7F0',
-            borderTop: '1px solid #EFEAE0',
-            borderBottom: '1px solid #EFEAE0',
-            fontSize: '1.05rem',
-            lineHeight: '1.65',
-            color: 'var(--text-primary)',
-            cursor: 'pointer',
-          }}
-        >
-          {post.content}
-
-          {heartAnim && (
-            <div style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              color: '#ef4444',
-            }}>
-              <Heart size={64} fill="#ef4444" />
-            </div>
-          )}
+      {/* 3. Optional Compact Photo Attachment (if present) */}
+      {post.image_url && (
+        <div style={{ padding: '0 1.25rem 0.85rem 1.25rem' }}>
+          <div style={{
+            borderRadius: '10px',
+            overflow: 'hidden',
+            border: '1px solid var(--border-color)',
+            maxHeight: '340px',
+            backgroundColor: '#FAF8F5'
+          }}>
+            <img 
+              src={post.image_url} 
+              alt="Attachment" 
+              style={{ width: '100%', maxHeight: '340px', objectFit: 'cover', display: 'block' }}
+            />
+          </div>
         </div>
       )}
 
-      {/* 3. Action Buttons Bar */}
+      {/* 4. Stats Summary Line (e.g. 24 Likes · 8 Comments) */}
       <div style={{
+        padding: '0.4rem 1.25rem 0.65rem 1.25rem',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0.65rem 1rem 0.35rem 1rem',
+        fontSize: '0.825rem',
+        color: 'var(--text-muted)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <span>{likeCount} {likeCount === 1 ? 'Like' : 'Likes'}</span>
+          <span>•</span>
           <button
-            type="button"
-            onClick={toggleLike}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: liked ? '#ef4444' : 'var(--text-primary)',
-              padding: 0,
-              display: 'flex',
-              transition: 'transform 0.15s ease',
-            }}
-          >
-            <Heart size={24} fill={liked ? '#ef4444' : 'none'} strokeWidth={2} />
-          </button>
-
-          <button
-            type="button"
             onClick={loadComments}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--text-primary)',
-              padding: 0,
-              display: 'flex',
-            }}
+            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, font: 'inherit' }}
           >
-            <MessageCircle size={24} strokeWidth={2} />
-          </button>
-
-          <button
-            type="button"
-            onClick={handleShare}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--text-primary)',
-              padding: 0,
-              display: 'flex',
-            }}
-            title={copied ? 'Link Copied!' : 'Copy Link'}
-          >
-            <Send size={22} strokeWidth={2} />
+            {commentCount} {commentCount === 1 ? 'Comment' : 'Comments'}
           </button>
         </div>
+      </div>
 
+      {/* 5. Clean Action Buttons: Text + Icons */}
+      <div style={{
+        borderTop: '1px solid var(--border-color)',
+        borderBottom: showComments ? '1px solid var(--border-color)' : 'none',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        padding: '0.2rem 0.5rem',
+      }}>
+        {/* Like */}
         <button
           type="button"
-          onClick={() => alert('Post saved to collection!')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', padding: 0 }}
+          onClick={toggleLike}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.45rem',
+            padding: '0.6rem',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            borderRadius: '6px',
+            color: liked ? 'var(--primary)' : 'var(--text-secondary)',
+            transition: 'background-color 0.15s ease',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FAF8F4'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
         >
-          <Bookmark size={22} strokeWidth={2} />
+          <Heart size={16} fill={liked ? 'var(--primary)' : 'none'} color={liked ? 'var(--primary)' : 'currentColor'} strokeWidth={2} />
+          <span>{liked ? 'Liked' : 'Like'}</span>
+        </button>
+
+        {/* Comment */}
+        <button
+          type="button"
+          onClick={loadComments}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.45rem',
+            padding: '0.6rem',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            borderRadius: '6px',
+            color: 'var(--text-secondary)',
+            transition: 'background-color 0.15s ease',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FAF8F4'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+        >
+          <MessageSquare size={16} strokeWidth={2} />
+          <span>Comment</span>
+        </button>
+
+        {/* Share */}
+        <button
+          type="button"
+          onClick={handleShare}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.45rem',
+            padding: '0.6rem',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            borderRadius: '6px',
+            color: 'var(--text-secondary)',
+            transition: 'background-color 0.15s ease',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FAF8F4'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+        >
+          <Share2 size={16} strokeWidth={2} />
+          <span>{copied ? 'Copied' : 'Share'}</span>
         </button>
       </div>
 
-      {/* 4. Likes Count & Caption */}
-      <div style={{ padding: '0 1rem', marginBottom: '0.5rem' }}>
-        <div style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '0.35rem' }}>
-          {likeCount.toLocaleString()} {likeCount === 1 ? 'like' : 'likes'}
-        </div>
-
-        {post.image_url && (
-          <div style={{ fontSize: '0.875rem', lineHeight: '1.5' }}>
-            <strong style={{ marginRight: '0.4rem', color: 'var(--text-primary)' }}>
-              {post.author_username}
-            </strong>
-            <span style={{ color: 'var(--text-primary)' }}>{post.content}</span>
-          </div>
-        )}
-      </div>
-
-      {/* 5. Comments Section */}
-      <div style={{ padding: '0 1rem 0.5rem 1rem' }}>
-        {commentCount > 0 && !showComments && (
-          <button
-            type="button"
-            onClick={loadComments}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--text-muted)',
-              fontSize: '0.825rem',
-              padding: 0,
-              marginBottom: '0.4rem',
-            }}
-          >
-            View all {commentCount.toLocaleString()} comments
-          </button>
-        )}
-
-        {showComments && (
-          <div style={{ marginTop: '0.5rem', marginBottom: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+      {/* 6. Discussion Comments Section */}
+      {showComments && (
+        <div style={{ backgroundColor: '#FAF9F6', padding: '1rem 1.25rem' }}>
+          
+          {/* Comments List */}
+          <div style={{ marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {loadingComments ? (
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Loading comments...</div>
+              <div style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>Loading discussion...</div>
             ) : comments.length === 0 ? (
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No comments yet. Be the first to comment!</div>
+              <div style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>No replies yet. Join the conversation!</div>
             ) : (
               comments.map((c) => (
-                <div key={c.id} style={{ fontSize: '0.825rem', lineHeight: '1.4' }}>
-                  <strong style={{ marginRight: '0.4rem' }}>{c.author_username}</strong>
-                  <span style={{ color: 'var(--text-secondary)' }}>{c.content}</span>
+                <div key={c.id} style={{ display: 'flex', gap: '0.65rem' }}>
+                  <img 
+                    src={c.author_avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${c.author_username}`}
+                    alt={c.author_username}
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', flexShrink: 0, marginTop: '2px' }}
+                  />
+                  <div style={{
+                    backgroundColor: '#FFFFFF',
+                    padding: '0.55rem 0.85rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    flex: 1
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.825rem', color: 'var(--text-primary)' }}>
+                        {c.author_name || c.author_username}
+                      </span>
+                      <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
+                        {formatRelativeTime(c.created_at)}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                      {c.content}
+                    </div>
+                  </div>
                 </div>
               ))
             )}
           </div>
-        )}
-      </div>
 
-      {/* 6. Inline "Add a comment..." Bar */}
-      <form 
-        onSubmit={handleAddComment}
-        style={{
-          borderTop: '1px solid #F0ECE4',
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0.65rem 1rem',
-          backgroundColor: '#FFFFFF',
-        }}
-      >
-        <input 
-          type="text"
-          placeholder="Add a comment..."
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          style={{
-            flex: 1,
-            border: 'none',
-            outline: 'none',
-            fontSize: '0.85rem',
-            background: 'transparent',
-            color: 'var(--text-primary)',
-          }}
-        />
-        <button
-          type="submit"
-          disabled={!newComment.trim() || submittingComment}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: newComment.trim() ? 'var(--primary)' : 'var(--text-muted)',
-            fontWeight: 700,
-            fontSize: '0.85rem',
-            cursor: newComment.trim() ? 'pointer' : 'default',
-            paddingLeft: '0.5rem',
-          }}
-        >
-          {submittingComment ? '...' : 'Post'}
-        </button>
-      </form>
+          {/* Inline Comment Composer */}
+          <form onSubmit={handleAddComment} style={{ display: 'flex', gap: '0.5rem' }}>
+            <input 
+              type="text"
+              placeholder="Write a constructive reply..."
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              className="form-input"
+              style={{
+                fontSize: '0.85rem',
+                padding: '0.55rem 0.85rem',
+                backgroundColor: '#FFFFFF'
+              }}
+            />
+            <button
+              type="submit"
+              disabled={!newComment.trim() || submittingComment}
+              className="btn btn-primary"
+              style={{
+                padding: '0.55rem 1rem',
+                fontSize: '0.825rem',
+                borderRadius: 'var(--radius-md)',
+              }}
+            >
+              {submittingComment ? '...' : 'Reply'}
+            </button>
+          </form>
+
+        </div>
+      )}
 
     </article>
   );
