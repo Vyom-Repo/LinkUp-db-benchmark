@@ -330,11 +330,11 @@ router.get('/metrics', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// 2. RUN CONTROLLED APPLICATION RESPONSE TIME COMPARISON (OPTION B)
+// 2. RUN CONTROLLED APPLICATION RESPONSE TIME COMPARISON (OPTION B - REAL FEED WORKLOAD)
 router.post('/compare', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { operation = 'feed_read' } = req.body || {};
-    const result = await runControlledComparison(operation);
+    const result = await runControlledComparison(operation, req.user?.id);
     return res.json({ success: true, data: result });
   } catch (err) {
     console.error('[Admin Compare Run Error]:', err);
@@ -342,21 +342,25 @@ router.post('/compare', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// Single Workload execution over HTTP (for client-side browser round-trip measurement)
+// Single Workload execution over HTTP (for client-side browser round-trip measurement of real Feed workload)
 router.get('/compare/workload', requireAuth, requireAdmin, async (req, res) => {
   try {
     const rawEngine = (req.query.engine || '').toUpperCase();
     const engine = rawEngine.includes('MONGO') ? 'MONGODB' : 'POSTGRES';
     const limit = parseInt(req.query.limit, 10) || 30;
 
+    // Use authenticated user ID or standard benchmark user present in both PG and Mongo
+    const comparisonUserId = req.user?.id || 'a0000000-0000-4000-8000-000000000001';
+
+    // Reproduce the ACTUAL User Feed workload: limit 30, sort: '', q: '', dynamic seed, user like-check
     const result = await postRepo.getFeed({
-      currentUserId: null,
+      currentUserId: comparisonUserId,
       limit,
       page: 1,
       offset: 0,
-      sort: 'latest',
-      q: '',
-      seed: req.query.seed || 'comparison_seed',
+      sort: '', // Actual Feed query semantics
+      q: '',    // Actual Feed query semantics
+      seed: req.query.seed || Date.now().toString(),
       engineOverride: engine
     });
 

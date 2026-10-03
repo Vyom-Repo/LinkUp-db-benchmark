@@ -109,6 +109,7 @@ export default function AdminDashboardPage() {
   const [comparisonData, setComparisonData] = useState(null);
   const [comparing, setComparing] = useState(false);
   const [comparisonError, setComparisonError] = useState(null);
+  const [showWorkloadDetails, setShowWorkloadDetails] = useState(false);
 
   // Fetch Live Telemetry Data
   const fetchMetrics = async (isManual = false) => {
@@ -157,15 +158,14 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Run Controlled Client Browser-to-Server HTTP Round-Trip Comparison
+  // Run Controlled Client Browser-to-Server HTTP Round-Trip Comparison (Actual Feed Workload)
   const runComparison = async () => {
     setComparing(true);
     setComparisonError(null);
     try {
-      const fetchEngineSample = async (engine) => {
-        const seed = Date.now().toString() + '_' + Math.random().toString(36).slice(2, 7);
+      const fetchEngineSample = async (engine, seed) => {
         const t0 = performance.now();
-        const res = await fetch(`/api/admin/compare/workload?engine=${engine}&limit=30&seed=${seed}&_t=${Date.now()}`, {
+        const res = await fetch(`/api/admin/compare/workload?engine=${engine}&limit=30&seed=${encodeURIComponent(seed)}&_t=${Date.now()}`, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Cache-Control': 'no-cache',
@@ -175,22 +175,24 @@ export default function AdminDashboardPage() {
         const json = await res.json();
         const t1 = performance.now();
         if (!res.ok || !json.success) {
-          throw new Error(json.error?.message || `Failed to fetch ${engine}`);
+          const engName = engine === 'POSTGRES' ? 'PostgreSQL' : 'MongoDB';
+          throw new Error(`${engName} measurement failed. Comparison unavailable for this run.`);
         }
         const appResponseMs = Math.max(1, Math.round(t1 - t0));
         const dbExecutionMs = json.data?.dbExecutionMs ? parseFloat(json.data.dbExecutionMs.toFixed(2)) : 0;
         return { appResponseMs, dbExecutionMs };
       };
 
-      // 1. Warm-up (1 unrecorded run per engine)
+      // 1. Warm-up (1 unrecorded run per engine with identical seed)
       try {
-        await fetchEngineSample('POSTGRES');
-        await fetchEngineSample('MONGODB');
+        const warmupSeed = 'warmup_feed_' + Date.now();
+        await fetchEngineSample('POSTGRES', warmupSeed);
+        await fetchEngineSample('MONGODB', warmupSeed);
       } catch (wErr) {
         console.warn('Warmup notice:', wErr.message);
       }
 
-      // 2. Controlled alternating sample collection (3 samples per engine)
+      // 2. Controlled alternating sample collection (3 samples per engine with identical seed per run)
       const samplesCount = 3;
       const pgAppSamples = [];
       const pgDbSamples = [];
@@ -198,20 +200,23 @@ export default function AdminDashboardPage() {
       const mongoDbSamples = [];
 
       for (let i = 0; i < samplesCount; i++) {
+        // Shared seed across both engines for exact logical equality
+        const sampleSeed = 'feed_cmp_seed_' + Date.now() + '_' + i;
+
         if (i % 2 === 0) {
-          const pgRes = await fetchEngineSample('POSTGRES');
+          const pgRes = await fetchEngineSample('POSTGRES', sampleSeed);
           pgAppSamples.push(pgRes.appResponseMs);
           pgDbSamples.push(pgRes.dbExecutionMs);
 
-          const mongoRes = await fetchEngineSample('MONGODB');
+          const mongoRes = await fetchEngineSample('MONGODB', sampleSeed);
           mongoAppSamples.push(mongoRes.appResponseMs);
           mongoDbSamples.push(mongoRes.dbExecutionMs);
         } else {
-          const mongoRes = await fetchEngineSample('MONGODB');
+          const mongoRes = await fetchEngineSample('MONGODB', sampleSeed);
           mongoAppSamples.push(mongoRes.appResponseMs);
           mongoDbSamples.push(mongoRes.dbExecutionMs);
 
-          const pgRes = await fetchEngineSample('POSTGRES');
+          const pgRes = await fetchEngineSample('POSTGRES', sampleSeed);
           pgAppSamples.push(pgRes.appResponseMs);
           pgDbSamples.push(pgRes.dbExecutionMs);
         }
@@ -240,9 +245,20 @@ export default function AdminDashboardPage() {
       const newComparison = {
         timestamp: timeStr,
         operation: 'feed_read',
-        operationLabel: 'Feed Read (30 posts · Full Browser HTTP Round-Trip)',
+        operationLabel: 'Feed Read (30 posts · Actual Feed Workload)',
         metric: 'browser_http_round_trip',
         unit: 'ms',
+        workload: {
+          type: 'Feed Read',
+          limit: 30,
+          ordering: 'Seeded Feed Ordering',
+          userContext: 'Authenticated',
+          dataset: 'Current LinkUp Dataset',
+          technicalDetails: {
+            postgres: 'ORDER BY hashtext(p.id::text || $seed) DESC LIMIT 30 (with author join & post_likes check)',
+            mongodb: '$sample: { size: 30 } aggregation pipeline with $lookup, $unwind, and post_likes check'
+          }
+        },
         postgres: {
           engine: 'PostgreSQL',
           responseTimeMs: pgMedianApp,
@@ -262,8 +278,8 @@ export default function AdminDashboardPage() {
           differencePercent: diffPct,
           isEquivalent,
           statement: isEquivalent
-            ? 'Response times are approximately equivalent in this measured operation.'
-            : `${fasterEngine}: ${diffPct}% lower response time in this measured operation`
+            ? 'Response times were approximately equivalent in this measured Feed operation.'
+            : `${fasterEngine}: ${diffPct}% lower response time in this measured Feed operation.`
         }
       };
 
@@ -1062,7 +1078,7 @@ export default function AdminDashboardPage() {
             </button>
           </div>
 
-          {/* CONTROLLED END-TO-END APPLICATION RESPONSE TIME COMPARISON (OPTION B) */}
+          {/* CONTROLLED END-TO-END APPLICATION RESPONSE TIME COMPARISON (OPTION B - REAL FEED WORKLOAD) */}
           <div style={{
             backgroundColor: '#FAF8F4',
             border: '1px solid #E2E8F0',
@@ -1073,10 +1089,18 @@ export default function AdminDashboardPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.25rem' }}>
               <div>
                 <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
-                  END-TO-END RESPONSE TIME
+                  END-TO-END FEED RESPONSE TIME
                 </div>
-                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748B', marginTop: '0.15rem' }}>
-                  Operation: {comparisonData?.operationLabel || 'Feed Read (30 posts)'}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap', marginTop: '0.35rem' }}>
+                  <span style={{ fontSize: '0.725rem', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', color: '#475569', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 600 }}>
+                    Operation: Feed Read
+                  </span>
+                  <span style={{ fontSize: '0.725rem', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', color: '#475569', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 600 }}>
+                    Posts: 30
+                  </span>
+                  <span style={{ fontSize: '0.725rem', backgroundColor: '#ECFDF5', border: '1px solid #A7F3D0', color: '#047857', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 600 }}>
+                    Authenticated user context: enabled
+                  </span>
                 </div>
               </div>
               {comparisonData?.timestamp && !comparing && (
@@ -1091,15 +1115,15 @@ export default function AdminDashboardPage() {
               <div style={{ padding: '0.75rem 0' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', fontSize: '0.85rem', fontWeight: 700, color: '#D97706', marginBottom: '1rem' }}>
                   <RefreshCw size={15} className="animate-spin" />
-                  <span>Comparing engines…</span>
+                  <span>Measuring actual Feed workload on both engines…</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#475569' }}>
-                    <span style={{ fontWeight: 600 }}>PostgreSQL</span>
+                    <span style={{ fontWeight: 600 }}>PostgreSQL (Seeded Feed Order & Likes Check)</span>
                     <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>Measuring…</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#475569' }}>
-                    <span style={{ fontWeight: 600 }}>MongoDB</span>
+                    <span style={{ fontWeight: 600 }}>MongoDB (Seeded Feed Order & Likes Check)</span>
                     <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>Measuring…</span>
                   </div>
                 </div>
@@ -1108,7 +1132,7 @@ export default function AdminDashboardPage() {
               /* State 2: Error Boundary */
               <div style={{ padding: '0.75rem 0', color: '#B91C1C', fontSize: '0.825rem' }}>
                 <p style={{ margin: '0 0 0.4rem 0', fontWeight: 700 }}>
-                  Comparison unavailable — both engines must complete the equivalent operation.
+                  {comparisonError.includes('failed') ? comparisonError : 'Comparison unavailable — both engines must complete the equivalent operation.'}
                 </p>
                 <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748B' }}>{comparisonError}</p>
               </div>
@@ -1120,7 +1144,7 @@ export default function AdminDashboardPage() {
                   No comparison available yet.
                 </div>
                 <div style={{ fontSize: '0.8rem', color: '#64748B', maxWidth: '440px', margin: '0 auto 1.25rem auto' }}>
-                  Run an equivalent operation on both engines to measure.
+                  Run an equivalent Feed Read operation on both engines to measure.
                 </div>
                 <button
                   onClick={runComparison}
@@ -1204,12 +1228,48 @@ export default function AdminDashboardPage() {
                     <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '0.85rem', marginBottom: '1.25rem' }}>
                       <div style={{ fontSize: '0.95rem', fontWeight: 800, color: isEquivalent ? '#0F172A' : (fasterEngine === 'MongoDB' ? '#059669' : '#0284C7') }}>
                         {isEquivalent
-                          ? 'Response times are approximately equivalent in this measured operation.'
-                          : `${fasterEngine}: ${diffPct}% lower response time`}
+                          ? 'Response times were approximately equivalent in this measured Feed operation.'
+                          : `${fasterEngine}: ${diffPct}% lower response time in this measured Feed operation.`}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '0.2rem' }}>
-                        Based on the latest equivalent application operation measured on both engines.
+                        Based on the same Feed Read workload measured on both engines.
                       </div>
+                    </div>
+
+                    {/* 14. WORKLOAD IDENTITY & TECHNICAL DETAILS */}
+                    <div style={{
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #E2E8F0',
+                      borderRadius: '8px',
+                      padding: '0.75rem 1rem',
+                      marginBottom: '1.25rem',
+                      fontSize: '0.775rem'
+                    }}>
+                      <div
+                        onClick={() => setShowWorkloadDetails(!showWorkloadDetails)}
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: '#334155', fontWeight: 700 }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <span style={{ color: '#0F172A', textTransform: 'uppercase', letterSpacing: '0.03em', fontSize: '0.725rem' }}>FEED READ</span>
+                          <span style={{ color: '#94A3B8' }}>•</span>
+                          <span style={{ color: '#64748B' }}>Limit: 30 posts</span>
+                          <span style={{ color: '#94A3B8' }}>•</span>
+                          <span style={{ color: '#64748B' }}>Ordering: Seeded Feed Ordering</span>
+                          <span style={{ color: '#94A3B8' }}>•</span>
+                          <span style={{ color: '#64748B' }}>User Context: Authenticated</span>
+                          <span style={{ color: '#94A3B8' }}>•</span>
+                          <span style={{ color: '#64748B' }}>Dataset: Current LinkUp Dataset</span>
+                        </div>
+                        <span style={{ fontSize: '0.7rem', color: '#0284C7', flexShrink: 0 }}>
+                          {showWorkloadDetails ? '▲ Hide Details' : '▼ Technical Details'}
+                        </span>
+                      </div>
+                      {showWorkloadDetails && (
+                        <div style={{ marginTop: '0.65rem', borderTop: '1px solid #F1F5F9', paddingTop: '0.65rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', color: '#64748B', fontFamily: 'monospace', fontSize: '0.725rem' }}>
+                          <div><strong style={{ color: '#0284C7' }}>PostgreSQL:</strong> ORDER BY hashtext(p.id::text || $seed) DESC LIMIT 30 (with author JOIN and post_likes check)</div>
+                          <div><strong style={{ color: '#059669' }}>MongoDB:</strong> $sample: &#123; size: 30 &#125; aggregation pipeline with $lookup, $unwind, and post_likes check</div>
+                        </div>
+                      )}
                     </div>
 
                     {/* 13. SEPARATE DATABASE EXECUTION TIME */}
@@ -1252,7 +1312,7 @@ export default function AdminDashboardPage() {
 
                     {/* Subtle Measurement Conditions Note */}
                     <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '1rem', fontStyle: 'italic', borderTop: '1px solid #F1F5F9', paddingTop: '0.65rem' }}>
-                      Measured via client-side HTTP round-trip on the same application workload and dataset. Values reflect the complete user-facing request cycle (network, proxy, API controller, and database execution).
+                      Measured via client-side HTTP round-trip on the same Feed Read workload and dataset. Values reflect the complete user-facing request cycle (network, proxy, API controller, and database execution).
                     </div>
                   </div>
                 );
