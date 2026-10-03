@@ -1,28 +1,21 @@
-import { Link, Navigate } from 'react-router-dom';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import { LogIn, UserPlus } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 
 export default function HomePage() {
-  const { isAuthenticated } = useAuth();
-
-  if (isAuthenticated) {
-    return <Navigate to="/feed" replace />;
-  }
-
   return (
-    <div style={{
+    <main style={{
       minHeight: 'calc(100vh - 72px)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '2rem 1.5rem',
-      backgroundColor: 'var(--bg-primary)',
+      padding: '3rem 1.5rem',
       textAlign: 'center'
     }}>
-      <div style={{ maxWidth: '640px', width: '100%' }}>
+      <div style={{ maxWidth: '620px', width: '100%' }}>
         
-        {/* Prominent AI Generated Brand Logo */}
+        {/* Centered AI Monogram Logo */}
         <div style={{ marginBottom: '2rem' }}>
           <img 
             src="/logo.jpg" 
@@ -32,16 +25,17 @@ export default function HomePage() {
               height: '110px',
               borderRadius: '24px',
               objectFit: 'cover',
-              boxShadow: '0 12px 32px -4px rgba(44, 39, 32, 0.12), 0 4px 12px -2px rgba(44, 39, 32, 0.06)',
+              boxShadow: '0 16px 36px -6px rgba(44, 39, 32, 0.14), 0 4px 12px -2px rgba(44, 39, 32, 0.06)',
               border: '1px solid var(--border-color)',
-              margin: '0 auto'
+              margin: '0 auto',
+              display: 'block'
             }}
           />
         </div>
 
-        {/* Brand Name */}
+        {/* Title */}
         <h1 style={{ 
-          fontSize: '3rem', 
+          fontSize: '3.25rem', 
           fontWeight: 800, 
           letterSpacing: '-0.04em', 
           color: 'var(--text-primary)',
@@ -56,14 +50,14 @@ export default function HomePage() {
           fontSize: '1.2rem', 
           color: 'var(--text-secondary)', 
           lineHeight: '1.7', 
-          marginBottom: '2.75rem',
+          marginBottom: '2.5rem',
           fontWeight: 400
         }}>
           Sync is a modern, real-time social platform engineered for seamless communication, 
           fluid conversations, and effortless synchronization across communities.
         </p>
 
-        {/* ONLY Login and Register Buttons */}
+        {/* Strictly Only Login and Register Buttons */}
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
@@ -72,14 +66,13 @@ export default function HomePage() {
           flexWrap: 'wrap' 
         }}>
           <Link 
-            to="/login" 
+            to="/login"
             className="btn btn-secondary" 
             style={{ 
-              padding: '0.875rem 2.25rem', 
+              padding: '0.85rem 2.25rem', 
               fontSize: '1rem',
               borderRadius: 'var(--radius-md)',
-              minWidth: '150px',
-              boxShadow: 'var(--shadow-sm)'
+              minWidth: '150px'
             }}
           >
             <LogIn size={18} />
@@ -87,10 +80,10 @@ export default function HomePage() {
           </Link>
 
           <Link 
-            to="/register" 
+            to="/register"
             className="btn btn-primary" 
             style={{ 
-              padding: '0.875rem 2.25rem', 
+              padding: '0.85rem 2.25rem', 
               fontSize: '1rem',
               borderRadius: 'var(--radius-md)',
               minWidth: '150px'
@@ -100,7 +93,8 @@ export default function HomePage() {
             <span>Register</span>
           </Link>
         </div>
+
       </div>
-    </div>
+    </main>
   );
 }

@@ -1,26 +1,26 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, Navigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { UserPlus, User, AtSign, Mail, Lock, Eye, EyeOff, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus, AlertCircle } from 'lucide-react';
 
 export default function RegisterPage() {
-  const { register, isAuthenticated } = useAuth();
+  const { register } = useAuth();
   const navigate = useNavigate();
+
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [bio, setBio] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  if (isAuthenticated) {
-    return <Navigate to="/feed" replace />;
-  }
+  const [successMsg, setSuccessMsg] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters.');
@@ -30,127 +30,295 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register({ name, username, email, password, bio });
-      navigate('/feed');
+      setSuccessMsg('Account created successfully! Redirecting...');
+      setTimeout(() => {
+        navigate('/');
+      }, 1500);
     } catch (err) {
-      setError(err.response?.data?.error?.message || 'Registration failed. Try a different email or username.');
+      setError(err.message || 'Registration failed.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="container" style={{ maxWidth: '480px', paddingTop: '3rem', paddingBottom: '4rem' }}>
-      <div className="glass-panel" style={{ padding: '2rem' }}>
-        
-        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
-          <h1 style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>Create Account</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Join the Sync network and experience realtime social streams
-          </p>
+    <div style={{
+      minHeight: 'calc(100vh - 72px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '2.5rem 1.5rem',
+    }}>
+      <div 
+        className="card animate-fade-in" 
+        style={{ 
+          maxWidth: '460px', 
+          width: '100%',
+          textAlign: 'center' 
+        }}
+      >
+        {/* Brand Icon */}
+        <div style={{ marginBottom: '1.25rem' }}>
+          <img 
+            src="/logo.jpg" 
+            alt="Sync Logo" 
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '14px',
+              objectFit: 'cover',
+              boxShadow: '0 4px 14px rgba(44, 39, 32, 0.08)',
+              margin: '0 auto',
+              display: 'block'
+            }}
+          />
         </div>
 
+        {/* Heading */}
+        <h1 style={{ 
+          fontSize: '1.85rem', 
+          fontWeight: 800, 
+          letterSpacing: '-0.03em', 
+          color: 'var(--text-primary)',
+          marginBottom: '0.4rem' 
+        }}>
+          Create Your Account
+        </h1>
+        <p style={{ 
+          color: 'var(--text-secondary)', 
+          fontSize: '0.9rem', 
+          marginBottom: '1.75rem' 
+        }}>
+          Join the Sync community to connect and communicate seamlessly
+        </p>
+
+        {/* Error Alert */}
         {error && (
           <div style={{
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: 'var(--radius-md)',
-            padding: '0.75rem 1rem',
-            color: '#f87171',
-            fontSize: '0.875rem',
-            marginBottom: '1.25rem',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem'
+            gap: '0.5rem',
+            padding: '0.75rem 1rem',
+            backgroundColor: '#FEF2F2',
+            border: '1px solid #FCA5A5',
+            borderRadius: 'var(--radius-md)',
+            color: '#B91C1C',
+            fontSize: '0.85rem',
+            textAlign: 'left',
+            marginBottom: '1.25rem'
           }}>
-            <AlertCircle size={16} />
+            <AlertCircle size={16} style={{ flexShrink: 0 }} />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.4rem' }}>
-              Full Name
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="Alex Johnson"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="form-input"
-            />
+        {/* Success Alert */}
+        {successMsg && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.75rem 1rem',
+            backgroundColor: '#F0FDF4',
+            border: '1px solid #86EFAC',
+            borderRadius: 'var(--radius-md)',
+            color: '#15803D',
+            fontSize: '0.85rem',
+            textAlign: 'left',
+            marginBottom: '1.25rem'
+          }}>
+            <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        {/* Register Form */}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+          
+          {/* Full Name */}
+          <div className="form-group">
+            <label className="form-label" htmlFor="reg-name">Full Name</label>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <User 
+                size={17} 
+                style={{ 
+                  position: 'absolute', 
+                  left: '12px', 
+                  color: 'var(--text-muted)', 
+                  pointerEvents: 'none' 
+                }} 
+              />
+              <input 
+                id="reg-name"
+                type="text"
+                required
+                placeholder="Alex Johnson"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="form-input"
+                style={{ paddingLeft: '2.5rem' }}
+                disabled={loading}
+              />
+            </div>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.4rem' }}>
-              Username
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="alexj"
-              value={username}
-              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-              className="form-input"
-            />
+          {/* Username */}
+          <div className="form-group">
+            <label className="form-label" htmlFor="reg-username">Username</label>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <AtSign 
+                size={17} 
+                style={{ 
+                  position: 'absolute', 
+                  left: '12px', 
+                  color: 'var(--text-muted)', 
+                  pointerEvents: 'none' 
+                }} 
+              />
+              <input 
+                id="reg-username"
+                type="text"
+                required
+                placeholder="alexj"
+                value={username}
+                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                className="form-input"
+                style={{ paddingLeft: '2.5rem' }}
+                disabled={loading}
+              />
+            </div>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.4rem' }}>
-              Email Address
-            </label>
-            <input
-              type="email"
-              required
-              placeholder="alex@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="form-input"
-            />
+          {/* Email */}
+          <div className="form-group">
+            <label className="form-label" htmlFor="reg-email">Email Address</label>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Mail 
+                size={17} 
+                style={{ 
+                  position: 'absolute', 
+                  left: '12px', 
+                  color: 'var(--text-muted)', 
+                  pointerEvents: 'none' 
+                }} 
+              />
+              <input 
+                id="reg-email"
+                type="email"
+                required
+                placeholder="alex@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="form-input"
+                style={{ paddingLeft: '2.5rem' }}
+                disabled={loading}
+              />
+            </div>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.4rem' }}>
-              Password
-            </label>
-            <input
-              type="password"
-              required
-              placeholder="At least 6 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="form-input"
-            />
+          {/* Password */}
+          <div className="form-group">
+            <label className="form-label" htmlFor="reg-password">Password</label>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Lock 
+                size={17} 
+                style={{ 
+                  position: 'absolute', 
+                  left: '12px', 
+                  color: 'var(--text-muted)', 
+                  pointerEvents: 'none' 
+                }} 
+              />
+              <input 
+                id="reg-password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                placeholder="At least 6 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="form-input"
+                style={{ paddingLeft: '2.5rem', paddingRight: '2.5rem' }}
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: 0
+                }}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </div>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.4rem' }}>
-              Bio (Optional)
-            </label>
-            <input
-              type="text"
-              placeholder="Software engineer interested in databases..."
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              className="form-input"
-            />
+          {/* Bio (Optional) */}
+          <div className="form-group">
+            <label className="form-label" htmlFor="reg-bio">Bio (Optional)</label>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <FileText 
+                size={17} 
+                style={{ 
+                  position: 'absolute', 
+                  left: '12px', 
+                  color: 'var(--text-muted)', 
+                  pointerEvents: 'none' 
+                }} 
+              />
+              <input 
+                id="reg-bio"
+                type="text"
+                placeholder="Tell the community a little about yourself"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                className="form-input"
+                style={{ paddingLeft: '2.5rem' }}
+                disabled={loading}
+              />
+            </div>
           </div>
 
-          <button
-            type="submit"
+          {/* Submit Button */}
+          <button 
+            type="submit" 
             disabled={loading}
             className="btn btn-primary"
-            style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }}
+            style={{ 
+              width: '100%', 
+              padding: '0.825rem', 
+              fontSize: '0.95rem',
+              borderRadius: 'var(--radius-md)',
+              marginTop: '0.5rem',
+              opacity: loading ? 0.7 : 1,
+            }}
           >
             <UserPlus size={16} />
             <span>{loading ? 'Creating account...' : 'Create Account'}</span>
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+        {/* Footer Link */}
+        <div style={{ 
+          marginTop: '1.75rem', 
+          paddingTop: '1.25rem', 
+          borderTop: '1px solid var(--border-color)',
+          fontSize: '0.875rem', 
+          color: 'var(--text-secondary)' 
+        }}>
           Already have an account?{' '}
-          <Link to="/login" style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
+          <Link 
+            to="/login" 
+            style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}
+          >
             Sign in
           </Link>
         </div>

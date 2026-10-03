@@ -1,75 +1,114 @@
 const express = require('express');
 const cors = require('cors');
 const config = require('./config/env');
-const { pool } = require('./config/postgres');
-const { connectMongo } = require('./config/mongodb');
-const { timingMiddleware } = require('./middleware/timingMiddleware');
-const { errorHandler } = require('./middleware/errorMiddleware');
-const routes = require('./routes');
-const systemState = require('./config/state');
+const { testPostgresConnection } = require('./config/postgres');
+const { connectMongo, testMongoConnection } = require('./config/mongodb');
 
 const app = express();
 
-// Standard Middlewares
-app.use(cors({
-  origin: '*',
-  exposedHeaders: ['X-Database-Engine', 'X-Response-Time-Ms'],
-}));
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true }));
+// Middleware
+app.use(cors());
+app.use(express.json());
 
-// Custom High-Resolution Performance & Engine Observability Middleware
-app.use(timingMiddleware);
+// Routes
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/posts', require('./routes/postRoutes'));
 
-// Mount API routes
-app.use('/api', routes);
+// Global Engine State
+let activeEngine = config.defaultDb; // 'POSTGRES' | 'MONGODB'
 
-// Centralized Error Boundary
-app.use(errorHandler);
+// 1. Basic Health Check
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'online',
+    activeEngine,
+    timestamp: new Date().toISOString(),
+  });
+});
 
-// Server Lifecycle Startup
-const startServer = async () => {
+// 2. Database Status (Dual Engine Diagnostics)
+app.get('/api/db-status', async (req, res) => {
+  const status = {
+    activeEngine,
+    postgres: { connected: false, latencyMs: null, database: null, error: null },
+    mongodb: { connected: false, latencyMs: null, database: null, error: null },
+  };
+
+  // Check PostgreSQL
   try {
-    console.log('\n[Startup] Connecting to data stores...');
+    const t0 = process.hrtime.bigint();
+    const pgRes = await testPostgresConnection();
+    const t1 = process.hrtime.bigint();
+    status.postgres = {
+      connected: pgRes.connected,
+      latencyMs: Number(t1 - t0) / 1e6,
+      database: pgRes.database,
+      error: null,
+    };
+  } catch (err) {
+    status.postgres.error = err.message;
+  }
 
-    // 1. Verify PostgreSQL
-    const pgRes = await pool.query('SELECT NOW() as current_time, current_database() as db_name;');
-    console.log(`[PostgreSQL] Connected to "${pgRes.rows[0].db_name}" at ${pgRes.rows[0].current_time}`);
+  // Check MongoDB
+  try {
+    const t0 = process.hrtime.bigint();
+    const mRes = await testMongoConnection();
+    const t1 = process.hrtime.bigint();
+    status.mongodb = {
+      connected: mRes.connected,
+      latencyMs: Number(t1 - t0) / 1e6,
+      database: mRes.database,
+      error: null,
+    };
+  } catch (err) {
+    status.mongodb.error = err.message;
+  }
 
-    // 2. Connect to MongoDB
+  res.json({ success: true, data: status });
+});
+
+// 3. Switch Active Engine on the fly
+app.post('/api/db-switch', (req, res) => {
+  const { engine } = req.body;
+  if (!['POSTGRES', 'MONGODB'].includes(engine?.toUpperCase())) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid database engine. Choose either POSTGRES or MONGODB.',
+    });
+  }
+
+  activeEngine = engine.toUpperCase();
+  console.log(`[Engine Switcher] Active database dynamically set to: ${activeEngine}`);
+  res.json({ success: true, activeEngine });
+});
+
+// Server Starter
+async function startServer() {
+  try {
+    console.log('[Startup] Connecting to data stores...');
+    await testPostgresConnection();
+    console.log('[Startup] ✅ PostgreSQL connected.');
     await connectMongo();
+    console.log('[Startup] ✅ MongoDB connected.');
 
-    // 3. Start listening
     const server = app.listen(config.port, () => {
-      console.log('\n======================================================');
-      console.log(`🚀 Sync Backend Server running on port ${config.port}`);
-      console.log(`📡 Default Database Engine: ${systemState.getActiveEngine().toUpperCase()}`);
+      console.log('======================================================');
+      console.log(`🚀 Sync Backend Server running on http://localhost:${config.port}`);
+      console.log(`📡 Active Database Engine: ${activeEngine}`);
       console.log(`📊 Health Endpoint:         http://localhost:${config.port}/api/health`);
-      console.log(`🔬 Admin Lab Status:        http://localhost:${config.port}/api/admin/database/status`);
-      console.log('======================================================\n');
+      console.log(`🔬 DB Status Endpoint:      http://localhost:${config.port}/api/db-status`);
+      console.log('======================================================');
     });
 
-    // Graceful Shutdown
-    const shutdown = async () => {
-      console.log('\n[Shutdown] Closing HTTP server and database connections...');
-      server.close(async () => {
-        await pool.end();
-        const { closeMongo } = require('./config/mongodb');
-        await closeMongo();
-        console.log('[Shutdown] Connections closed cleanly. Goodbye!');
-        process.exit(0);
-      });
-    };
-
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
-
-  } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    return server;
+  } catch (err) {
+    console.error('❌ Failed to start server:', err.message);
     process.exit(1);
   }
-};
+}
 
-startServer();
+if (require.main === module) {
+  startServer();
+}
 
-module.exports = app;
+module.exports = { app, startServer };

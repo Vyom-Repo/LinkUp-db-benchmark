@@ -1,44 +1,54 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { DatabaseProvider } from './context/DatabaseContext';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import HomePage from './pages/HomePage';
-import FeedPage from './pages/FeedPage';
-import SearchPage from './pages/SearchPage';
-import ProfilePage from './pages/ProfilePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import AdminLabPage from './pages/AdminLabPage';
-import AdminRoute from './components/AdminRoute';
+import FeedPage from './pages/FeedPage';
+import ProtectedRoute from './components/ProtectedRoute';
+
+function AppRoutes() {
+  const { isAuthenticated } = useAuth();
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-primary)' }}>
+      <Navbar />
+      <main style={{ flex: 1 }}>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route 
+            path="/login" 
+            element={isAuthenticated ? <Navigate to="/feed" replace /> : <LoginPage />} 
+          />
+          <Route 
+            path="/register" 
+            element={isAuthenticated ? <Navigate to="/feed" replace /> : <RegisterPage />} 
+          />
+          
+          {/* Strictly Protected Feed for Logged-In Students */}
+          <Route 
+            path="/feed" 
+            element={
+              <ProtectedRoute>
+                <FeedPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Catch-all redirect */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <DatabaseProvider>
-          <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <Navbar />
-            <main style={{ flex: 1 }}>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/feed" element={<FeedPage />} />
-                <Route path="/search" element={<SearchPage />} />
-                <Route path="/profile/:username" element={<ProfilePage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route 
-                  path="/admin" 
-                  element={
-                    <AdminRoute>
-                      <AdminLabPage />
-                    </AdminRoute>
-                  } 
-                />
-              </Routes>
-            </main>
-          </div>
-        </DatabaseProvider>
+        <AppRoutes />
       </AuthProvider>
     </BrowserRouter>
   );

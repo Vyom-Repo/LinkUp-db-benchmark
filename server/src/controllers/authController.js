@@ -2,192 +2,264 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config/env');
-const { userRepo } = require('../repositories');
-const systemState = require('../config/state');
+const { query } = require('../config/postgres');
+const { getMongoDb } = require('../config/mongodb');
 
-const generateToken = (user) => {
+function generateToken(user) {
   return jwt.sign(
     {
       id: user.id,
+      name: user.name,
       username: user.username,
       email: user.email,
-      isAdmin: user.is_admin,
+      isAdmin: user.is_admin || user.isAdmin || false,
     },
     config.jwt.secret,
     { expiresIn: config.jwt.expiresIn }
   );
-};
+}
 
-const register = async (req, res, next) => {
+// 1. REGISTER USER (DUAL-WRITE to both PostgreSQL and MongoDB)
+async function register(req, res) {
   try {
-    const { name, username, email, password, bio } = req.body;
+    const { name, username, email, password, bio, avatarUrl } = req.body;
 
     if (!name || !username || !email || !password) {
       return res.status(400).json({
         success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Name, username, email, and password are required.',
-        },
+        error: { message: 'Full name, username, email, and password are required.' },
       });
     }
+
+    const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    const cleanEmail = email.trim().toLowerCase();
 
     if (password.length < 6) {
       return res.status(400).json({
         success: false,
-        error: {
-          code: 'WEAK_PASSWORD',
-          message: 'Password must be at least 6 characters long.',
-        },
+        error: { message: 'Password must be at least 6 characters long.' },
       });
     }
 
-    // Check unique email and username
-    const existingEmail = await userRepo.findByEmail(email);
-    if (existingEmail) {
+    // Check if username or email already exists in PostgreSQL
+    const existingPg = await query(
+      'SELECT id, username, email FROM users WHERE username = $1 OR email = $2 LIMIT 1;',
+      [cleanUsername, cleanEmail]
+    );
+
+    if (existingPg.rows.length > 0) {
+      const match = existingPg.rows[0];
+      const field = match.email === cleanEmail ? 'Email' : 'Username';
       return res.status(409).json({
         success: false,
-        error: {
-          code: 'EMAIL_EXISTS',
-          message: 'An account with this email address already exists.',
-        },
+        error: { message: `${field} is already registered. Please log in or use a different one.` },
       });
     }
 
-    const existingUsername = await userRepo.findByUsername(username);
-    if (existingUsername) {
-      return res.status(409).json({
-        success: false,
-        error: {
-          code: 'USERNAME_EXISTS',
-          message: 'This username is already taken.',
-        },
-      });
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-    const userId = crypto.randomUUID();
-    const avatarUrl = `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(username)}`;
-
-    const newUser = await userRepo.create({
-      id: userId,
-      name,
-      username,
-      email,
-      passwordHash,
-      bio: bio || '',
-      avatarUrl,
-      isAdmin: false,
+    // Check MongoDB for redundancy
+    const mongoDb = getMongoDb();
+    const existingMongo = await mongoDb.collection('users').findOne({
+      $or: [{ username: cleanUsername }, { email: cleanEmail }],
     });
 
-    const token = generateToken(newUser);
+    if (existingMongo) {
+      const field = existingMongo.email === cleanEmail ? 'Email' : 'Username';
+      return res.status(409).json({
+        success: false,
+        error: { message: `${field} is already registered.` },
+      });
+    }
 
-    res.status(201).json({
+    // Generate credentials & canonical UUID
+    const userId = crypto.randomUUID();
+    const passwordHash = await bcrypt.hash(password, 10);
+    const now = new Date();
+    const cleanBio = bio ? bio.trim() : '';
+    const cleanAvatar = avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${cleanUsername}`;
+
+    // A. WRITE TO POSTGRESQL
+    await query(
+      `INSERT INTO users (id, name, username, email, password_hash, bio, avatar_url, is_admin, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);`,
+      [userId, name.trim(), cleanUsername, cleanEmail, passwordHash, cleanBio, cleanAvatar, false, now, now]
+    );
+
+    // B. WRITE TO MONGODB
+    await mongoDb.collection('users').insertOne({
+      _id: userId,
+      id: userId,
+      name: name.trim(),
+      username: cleanUsername,
+      email: cleanEmail,
+      passwordHash,
+      bio: cleanBio,
+      avatarUrl: cleanAvatar,
+      isAdmin: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    console.log(`[Dual-Write Auth] User "${cleanUsername}" successfully registered in BOTH PostgreSQL and MongoDB! (ID: ${userId})`);
+
+    const userPayload = {
+      id: userId,
+      name: name.trim(),
+      username: cleanUsername,
+      email: cleanEmail,
+      bio: cleanBio,
+      avatarUrl: cleanAvatar,
+      isAdmin: false,
+    };
+
+    const token = generateToken(userPayload);
+
+    return res.status(201).json({
       success: true,
+      message: 'Account registered successfully in both PostgreSQL and MongoDB.',
       data: {
-        user: {
-          id: newUser.id,
-          name: newUser.name,
-          username: newUser.username,
-          email: newUser.email,
-          bio: newUser.bio,
-          avatarUrl: newUser.avatar_url,
-          isAdmin: newUser.is_admin,
-          createdAt: newUser.created_at,
-        },
+        user: userPayload,
         token,
       },
-      meta: {
-        engine: systemState.getActiveEngine(),
-      },
     });
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    console.error('[Auth Register Error]:', err);
+    return res.status(500).json({
+      success: false,
+      error: { message: 'Internal server error during registration.' },
+    });
   }
-};
+}
 
-const login = async (req, res, next) => {
+// 2. LOGIN USER (Validates credentials against database)
+async function login(req, res) {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Email and password are required.',
-        },
+        error: { message: 'Email/username and password are required.' },
       });
     }
 
-    const user = await userRepo.findByEmail(email);
-    if (!user) {
+    const identifier = email.trim().toLowerCase();
+
+    // Query user from PostgreSQL first
+    let user = null;
+    let passwordHash = null;
+
+    const pgResult = await query(
+      'SELECT id, name, username, email, password_hash, bio, avatar_url, is_admin FROM users WHERE email = $1 OR username = $1 LIMIT 1;',
+      [identifier]
+    );
+
+    if (pgResult.rows.length > 0) {
+      const row = pgResult.rows[0];
+      user = {
+        id: row.id,
+        name: row.name,
+        username: row.username,
+        email: row.email,
+        bio: row.bio,
+        avatarUrl: row.avatar_url,
+        isAdmin: row.is_admin,
+      };
+      passwordHash = row.password_hash;
+    } else {
+      // Fallback query to MongoDB
+      const mongoDb = getMongoDb();
+      const mongoUser = await mongoDb.collection('users').findOne({
+        $or: [{ email: identifier }, { username: identifier }],
+      });
+
+      if (mongoUser) {
+        user = {
+          id: mongoUser.id || mongoUser._id,
+          name: mongoUser.name,
+          username: mongoUser.username,
+          email: mongoUser.email,
+          bio: mongoUser.bio,
+          avatarUrl: mongoUser.avatarUrl,
+          isAdmin: mongoUser.isAdmin || false,
+        };
+        passwordHash = mongoUser.passwordHash;
+      }
+    }
+
+    if (!user || !passwordHash) {
       return res.status(401).json({
         success: false,
-        error: {
-          code: 'INVALID_CREDENTIALS',
-          message: 'Invalid email or password.',
-        },
+        error: { message: 'Invalid credentials. User not found.' },
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch) {
+    const passwordMatches = await bcrypt.compare(password, passwordHash);
+    if (!passwordMatches) {
       return res.status(401).json({
         success: false,
-        error: {
-          code: 'INVALID_CREDENTIALS',
-          message: 'Invalid email or password.',
-        },
+        error: { message: 'Invalid credentials. Incorrect password.' },
       });
     }
 
     const token = generateToken(user);
 
-    res.json({
+    return res.json({
+      success: true,
+      message: 'Login successful.',
+      data: {
+        user,
+        token,
+      },
+    });
+  } catch (err) {
+    console.error('[Auth Login Error]:', err);
+    return res.status(500).json({
+      success: false,
+      error: { message: 'Internal server error during login.' },
+    });
+  }
+}
+
+// 3. GET CURRENT USER PROFILE (/api/auth/me)
+async function getMe(req, res) {
+  try {
+    const userId = req.user.id;
+    const pgRes = await query(
+      'SELECT id, name, username, email, bio, avatar_url, is_admin, created_at FROM users WHERE id = $1;',
+      [userId]
+    );
+
+    if (pgRes.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'User not found.' },
+      });
+    }
+
+    const row = pgRes.rows[0];
+    return res.json({
       success: true,
       data: {
         user: {
-          id: user.id,
-          name: user.name,
-          username: user.username,
-          email: user.email,
-          bio: user.bio,
-          avatarUrl: user.avatar_url,
-          isAdmin: user.is_admin,
-          createdAt: user.created_at,
+          id: row.id,
+          name: row.name,
+          username: row.username,
+          email: row.email,
+          bio: row.bio,
+          avatarUrl: row.avatar_url,
+          isAdmin: row.is_admin,
+          createdAt: row.created_at,
         },
-        token,
-      },
-      meta: {
-        engine: systemState.getActiveEngine(),
       },
     });
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    console.error('[Auth getMe Error]:', err);
+    return res.status(500).json({
+      success: false,
+      error: { message: 'Failed to fetch current user profile.' },
+    });
   }
-};
-
-const getMe = async (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      user: {
-        id: req.user.id,
-        name: req.user.name,
-        username: req.user.username,
-        email: req.user.email,
-        bio: req.user.bio,
-        avatarUrl: req.user.avatar_url,
-        isAdmin: req.user.is_admin,
-        createdAt: req.user.created_at,
-      },
-    },
-    meta: {
-      engine: systemState.getActiveEngine(),
-    },
-  });
-};
+}
 
 module.exports = {
   register,

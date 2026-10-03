@@ -1,313 +1,301 @@
 const crypto = require('crypto');
-const { postRepo, likeRepo } = require('../repositories');
-const systemState = require('../config/state');
+const { query } = require('../config/postgres');
+const { getMongoDb } = require('../config/mongodb');
 
-const createPost = async (req, res, next) => {
+// 1. GET FEED POSTS (WITH AUTHOR & LIKE STATUS)
+async function getFeed(req, res) {
   try {
+    const currentUserId = req.user?.id;
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const page = parseInt(req.query.page, 10) || 1;
+    const offset = (page - 1) * limit;
+
+    const sql = `
+      SELECT 
+        p.id,
+        p.author_id,
+        p.content,
+        p.image_url,
+        p.like_count,
+        p.comment_count,
+        p.created_at,
+        u.name AS author_name,
+        u.username AS author_username,
+        u.avatar_url AS author_avatar,
+        EXISTS(
+          SELECT 1 FROM post_likes pl 
+          WHERE pl.post_id = p.id AND pl.user_id = $1
+        ) AS is_liked_by_me
+      FROM posts p
+      JOIN users u ON u.id = p.author_id
+      ORDER BY p.created_at DESC
+      LIMIT $2 OFFSET $3;
+    `;
+
+    const result = await query(sql, [currentUserId || null, limit, offset]);
+
+    return res.json({
+      success: true,
+      data: {
+        posts: result.rows,
+        page,
+        limit,
+      },
+    });
+  } catch (err) {
+    console.error('[getFeed Error]:', err);
+    return res.status(500).json({
+      success: false,
+      error: { message: 'Failed to load feed posts.' },
+    });
+  }
+}
+
+// 2. CREATE NEW POST (DUAL-WRITE to PostgreSQL and MongoDB)
+async function createPost(req, res) {
+  try {
+    const authorId = req.user.id;
     const { content, imageUrl } = req.body;
+
     if (!content || !content.trim()) {
       return res.status(400).json({
         success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Post content cannot be empty.',
-        },
+        error: { message: 'Post content cannot be empty.' },
       });
     }
 
     const postId = crypto.randomUUID();
-    const newPost = await postRepo.create({
+    const cleanContent = content.trim();
+    const cleanImageUrl = imageUrl ? imageUrl.trim() : null;
+    const now = new Date();
+
+    // A. PostgreSQL
+    await query(
+      `INSERT INTO posts (id, author_id, content, image_url, like_count, comment_count, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, 0, 0, $5, $5);`,
+      [postId, authorId, cleanContent, cleanImageUrl, now]
+    );
+
+    // B. MongoDB
+    const mongoDb = getMongoDb();
+    await mongoDb.collection('posts').insertOne({
+      _id: postId,
       id: postId,
-      authorId: req.user.id,
-      content: content.trim(),
-      imageUrl: imageUrl || '',
+      authorId,
+      content: cleanContent,
+      imageUrl: cleanImageUrl,
+      likeCount: 0,
+      commentCount: 0,
+      createdAt: now,
+      updatedAt: now,
     });
 
-    res.status(201).json({
+    // Fetch author details for immediate client display
+    const userRes = await query('SELECT name, username, avatar_url FROM users WHERE id = $1', [authorId]);
+    const author = userRes.rows[0] || {};
+
+    const postPayload = {
+      id: postId,
+      author_id: authorId,
+      content: cleanContent,
+      image_url: cleanImageUrl,
+      like_count: 0,
+      comment_count: 0,
+      created_at: now.toISOString(),
+      author_name: author.name || req.user.name,
+      author_username: author.username || req.user.username,
+      author_avatar: author.avatar_url || null,
+      is_liked_by_me: false,
+    };
+
+    return res.status(201).json({
       success: true,
-      data: {
-        post: {
-          ...newPost,
-          author_name: req.user.name,
-          author_username: req.user.username,
-          author_avatar: req.user.avatar_url,
-          is_liked_by_me: false,
-        },
-      },
-      meta: {
-        engine: systemState.getActiveEngine(),
-      },
+      data: { post: postPayload },
     });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const getFeed = async (req, res, next) => {
-  try {
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
-    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const offset = (page - 1) * limit;
-    const sort = req.query.sort || 'latest';
-
-    const posts = await postRepo.getFeed({ limit, offset, sort });
-
-    // Check likes for current authenticated user if logged in
-    let likedPostIdSet = new Set();
-    if (req.user && posts.length > 0) {
-      const postIds = posts.map((p) => p.id);
-      const likedIds = await likeRepo.getLikedPostIdsByUser({
-        userId: req.user.id,
-        postIds,
-      });
-      likedPostIdSet = new Set(likedIds);
-    }
-
-    const enrichedPosts = posts.map((post) => ({
-      ...post,
-      is_liked_by_me: likedPostIdSet.has(post.id),
-    }));
-
-    res.json({
-      success: true,
-      data: {
-        posts: enrichedPosts,
-        pagination: {
-          page,
-          limit,
-          count: enrichedPosts.length,
-        },
-      },
-      meta: {
-        engine: systemState.getActiveEngine(),
-      },
+  } catch (err) {
+    console.error('[createPost Error]:', err);
+    return res.status(500).json({
+      success: false,
+      error: { message: 'Failed to publish post.' },
     });
-  } catch (error) {
-    next(error);
   }
-};
+}
 
-const getPostById = async (req, res, next) => {
+// 3. TOGGLE LIKE (DUAL-WRITE to post_likes in both databases)
+async function toggleLike(req, res) {
   try {
-    const { id } = req.params;
-    const post = await postRepo.findById(id);
+    const userId = req.user.id;
+    const { id: postId } = req.params;
 
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Post not found.',
+    // Check if like exists in PostgreSQL
+    const existing = await query(
+      'SELECT id FROM post_likes WHERE post_id = $1 AND user_id = $2;',
+      [postId, userId]
+    );
+
+    const mongoDb = getMongoDb();
+
+    if (existing.rows.length > 0) {
+      // UNLIKE
+      await query('DELETE FROM post_likes WHERE post_id = $1 AND user_id = $2;', [postId, userId]);
+      await query('UPDATE posts SET like_count = GREATEST(0, like_count - 1) WHERE id = $1;', [postId]);
+
+      await mongoDb.collection('post_likes').deleteOne({ postId, userId });
+      await mongoDb.collection('posts').updateOne({ _id: postId }, { $inc: { likeCount: -1 } });
+
+      const countRes = await query('SELECT like_count FROM posts WHERE id = $1;', [postId]);
+      return res.json({
+        success: true,
+        data: {
+          liked: false,
+          likeCount: countRes.rows[0]?.like_count ?? 0,
         },
       });
-    }
+    } else {
+      // LIKE
+      const likeId = crypto.randomUUID();
+      const now = new Date();
 
-    let isLikedByMe = false;
-    if (req.user) {
-      isLikedByMe = await likeRepo.hasLiked({ postId: id, userId: req.user.id });
-    }
+      await query(
+        'INSERT INTO post_likes (id, post_id, user_id, created_at) VALUES ($1, $2, $3, $4);',
+        [likeId, postId, userId, now]
+      );
+      await query('UPDATE posts SET like_count = like_count + 1 WHERE id = $1;', [postId]);
 
-    res.json({
-      success: true,
-      data: {
-        post: {
-          ...post,
-          is_liked_by_me: isLikedByMe,
-        },
-      },
-      meta: {
-        engine: systemState.getActiveEngine(),
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const getPostsByAuthor = async (req, res, next) => {
-  try {
-    const { authorId } = req.params;
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
-    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const offset = (page - 1) * limit;
-
-    const posts = await postRepo.getByAuthorId({ authorId, limit, offset });
-
-    let likedPostIdSet = new Set();
-    if (req.user && posts.length > 0) {
-      const postIds = posts.map((p) => p.id);
-      const likedIds = await likeRepo.getLikedPostIdsByUser({
-        userId: req.user.id,
-        postIds,
+      await mongoDb.collection('post_likes').insertOne({
+        _id: likeId,
+        id: likeId,
+        postId,
+        userId,
+        createdAt: now,
       });
-      likedPostIdSet = new Set(likedIds);
+      await mongoDb.collection('posts').updateOne({ _id: postId }, { $inc: { likeCount: 1 } });
+
+      const countRes = await query('SELECT like_count FROM posts WHERE id = $1;', [postId]);
+      return res.json({
+        success: true,
+        data: {
+          liked: true,
+          likeCount: countRes.rows[0]?.like_count ?? 1,
+        },
+      });
     }
-
-    const enrichedPosts = posts.map((post) => ({
-      ...post,
-      is_liked_by_me: likedPostIdSet.has(post.id),
-    }));
-
-    res.json({
-      success: true,
-      data: {
-        posts: enrichedPosts,
-        pagination: { page, limit, count: enrichedPosts.length },
-      },
-      meta: {
-        engine: systemState.getActiveEngine(),
-      },
+  } catch (err) {
+    console.error('[toggleLike Error]:', err);
+    return res.status(500).json({
+      success: false,
+      error: { message: 'Failed to update like status.' },
     });
-  } catch (error) {
-    next(error);
   }
-};
+}
 
-const updatePost = async (req, res, next) => {
+// 4. GET COMMENTS FOR A POST
+async function getComments(req, res) {
   try {
-    const { id } = req.params;
+    const { id: postId } = req.params;
+
+    const sql = `
+      SELECT 
+        c.id,
+        c.post_id,
+        c.author_id,
+        c.content,
+        c.created_at,
+        u.name AS author_name,
+        u.username AS author_username,
+        u.avatar_url AS author_avatar
+      FROM comments c
+      JOIN users u ON u.id = c.author_id
+      WHERE c.post_id = $1
+      ORDER BY c.created_at ASC;
+    `;
+
+    const result = await query(sql, [postId]);
+
+    return res.json({
+      success: true,
+      data: { comments: result.rows },
+    });
+  } catch (err) {
+    console.error('[getComments Error]:', err);
+    return res.status(500).json({
+      success: false,
+      error: { message: 'Failed to load comments.' },
+    });
+  }
+}
+
+// 5. ADD INLINE COMMENT (DUAL-WRITE)
+async function addComment(req, res) {
+  try {
+    const authorId = req.user.id;
+    const { id: postId } = req.params;
     const { content } = req.body;
 
     if (!content || !content.trim()) {
       return res.status(400).json({
         success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Content cannot be empty.',
-        },
+        error: { message: 'Comment text cannot be empty.' },
       });
     }
 
-    const updated = await postRepo.update({
-      id,
-      authorId: req.user.id,
-      content: content.trim(),
+    const commentId = crypto.randomUUID();
+    const cleanContent = content.trim();
+    const now = new Date();
+
+    // A. PostgreSQL
+    await query(
+      `INSERT INTO comments (id, post_id, author_id, content, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $5);`,
+      [commentId, postId, authorId, cleanContent, now]
+    );
+    await query('UPDATE posts SET comment_count = comment_count + 1 WHERE id = $1;', [postId]);
+
+    // B. MongoDB
+    const mongoDb = getMongoDb();
+    await mongoDb.collection('comments').insertOne({
+      _id: commentId,
+      id: commentId,
+      postId,
+      authorId,
+      content: cleanContent,
+      createdAt: now,
+      updatedAt: now,
     });
+    await mongoDb.collection('posts').updateOne({ _id: postId }, { $inc: { commentCount: 1 } });
 
-    if (!updated) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Post not found or you are not authorized to edit this post.',
-        },
-      });
-    }
+    // Fetch author info
+    const userRes = await query('SELECT name, username, avatar_url FROM users WHERE id = $1', [authorId]);
+    const author = userRes.rows[0] || {};
 
-    res.json({
+    const commentPayload = {
+      id: commentId,
+      post_id: postId,
+      author_id: authorId,
+      content: cleanContent,
+      created_at: now.toISOString(),
+      author_name: author.name || req.user.name,
+      author_username: author.username || req.user.username,
+      author_avatar: author.avatar_url || null,
+    };
+
+    return res.status(201).json({
       success: true,
-      data: { post: updated },
-      meta: {
-        engine: systemState.getActiveEngine(),
-      },
+      data: { comment: commentPayload },
     });
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    console.error('[addComment Error]:', err);
+    return res.status(500).json({
+      success: false,
+      error: { message: 'Failed to post comment.' },
+    });
   }
-};
-
-const deletePost = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const isAdmin = !!req.user.is_admin;
-
-    const deleted = await postRepo.delete({
-      id,
-      authorId: req.user.id,
-      isAdmin,
-    });
-
-    if (!deleted) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Post not found or you do not have permission to delete it.',
-        },
-      });
-    }
-
-    res.json({
-      success: true,
-      data: { deleted: true, id },
-      meta: {
-        engine: systemState.getActiveEngine(),
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const likePost = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const post = await postRepo.findById(id);
-
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        error: { code: 'NOT_FOUND', message: 'Post not found.' },
-      });
-    }
-
-    const result = await likeRepo.addLike({ postId: id, userId: req.user.id });
-    const freshPost = await postRepo.findById(id);
-
-    res.json({
-      success: true,
-      data: {
-        liked: true,
-        alreadyLiked: result.alreadyLiked,
-        likeCount: freshPost ? freshPost.like_count : post.like_count,
-      },
-      meta: {
-        engine: systemState.getActiveEngine(),
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const unlikePost = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const post = await postRepo.findById(id);
-
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        error: { code: 'NOT_FOUND', message: 'Post not found.' },
-      });
-    }
-
-    const result = await likeRepo.removeLike({ postId: id, userId: req.user.id });
-    const freshPost = await postRepo.findById(id);
-
-    res.json({
-      success: true,
-      data: {
-        liked: false,
-        wasLiked: result.wasLiked,
-        likeCount: freshPost ? freshPost.like_count : post.like_count,
-      },
-      meta: {
-        engine: systemState.getActiveEngine(),
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+}
 
 module.exports = {
-  createPost,
   getFeed,
-  getPostById,
-  getPostsByAuthor,
-  updatePost,
-  deletePost,
-  likePost,
-  unlikePost,
+  createPost,
+  toggleLike,
+  getComments,
+  addComment,
 };

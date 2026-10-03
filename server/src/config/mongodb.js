@@ -4,80 +4,48 @@ const config = require('./env');
 let client = null;
 let db = null;
 
-/**
- * Connect to MongoDB instance and initialize database reference
- */
-const connectMongo = async () => {
+async function connectMongo() {
   if (db) return db;
 
-  client = new MongoClient(config.mongodb.uri, {
-    maxPoolSize: config.mongodb.maxPool,
+  client = new MongoClient(config.mongo.uri, {
+    maxPoolSize: 20,
+    minPoolSize: 5,
     serverSelectionTimeoutMS: 5000,
-    connectTimeoutMS: 10000,
   });
 
   await client.connect();
-  db = client.db();
-  console.log('[MongoDB] Connected successfully to:', db.databaseName);
+  db = client.db(config.mongo.dbName);
+  console.log(`[MongoDB] Connected successfully to: ${config.mongo.dbName}`);
   return db;
-};
+}
 
-/**
- * Get active MongoDB database instance
- */
-const getDb = () => {
+function getMongoDb() {
   if (!db) {
-    throw new Error('[MongoDB] Database not initialized. Call connectMongo() first.');
+    throw new Error('MongoDB not initialized. Call connectMongo() first.');
   }
   return db;
-};
+}
 
-/**
- * Get native MongoClient instance
- */
-const getClient = () => client;
+async function testMongoConnection() {
+  const database = await connectMongo();
+  const pingRes = await database.command({ ping: 1 });
+  return {
+    connected: pingRes.ok === 1,
+    database: database.databaseName,
+  };
+}
 
-/**
- * Check MongoDB health
- */
-const checkHealth = async () => {
-  try {
-    if (!db) {
-      await connectMongo();
-    }
-    const start = Date.now();
-    const adminDb = client.db().admin();
-    const pingRes = await adminDb.ping();
-    const latency = Date.now() - start;
-    return {
-      status: 'connected',
-      latencyMs: latency,
-      database: db.databaseName,
-      ping: pingRes.ok === 1 ? 'ok' : 'fail',
-    };
-  } catch (error) {
-    return {
-      status: 'disconnected',
-      error: error.message,
-    };
-  }
-};
-
-/**
- * Graceful close
- */
-const closeMongo = async () => {
+async function closeMongo() {
   if (client) {
     await client.close();
     client = null;
     db = null;
   }
-};
+}
 
 module.exports = {
   connectMongo,
-  getDb,
-  getClient,
-  checkHealth,
+  getMongoDb,
+  testMongoConnection,
   closeMongo,
 };

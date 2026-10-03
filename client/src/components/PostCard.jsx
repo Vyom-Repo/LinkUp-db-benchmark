@@ -1,31 +1,22 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import api from '../services/api';
 
-export default function PostCard({ post, onPostDeleted }) {
-  const { user, isAuthenticated } = useAuth();
+export default function PostCard({ post }) {
+  const { token, user } = useAuth();
   const [liked, setLiked] = useState(post.is_liked_by_me || false);
-  const [likeCount, setLikeCount] = useState(post.like_count || 0);
-  const [commentCount, setCommentCount] = useState(post.comment_count || 0);
+  const [likeCount, setLikeCount] = useState(parseInt(post.like_count, 10) || 0);
+  const [commentCount, setCommentCount] = useState(parseInt(post.comment_count, 10) || 0);
+  
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
-  const [newCommentText, setNewCommentText] = useState('');
+  const [newComment, setNewComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [heartAnim, setHeartAnim] = useState(false);
-
-  const canDelete = user && (user.id === post.author_id || user.isAdmin);
+  const [copied, setCopied] = useState(false);
 
   const toggleLike = async () => {
-    if (!isAuthenticated) {
-      alert('Please log in to like posts.');
-      return;
-    }
-
     const prevLiked = liked;
     const prevCount = likeCount;
 
@@ -34,16 +25,20 @@ export default function PostCard({ post, onPostDeleted }) {
     setLikeCount(prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1);
 
     try {
-      if (prevLiked) {
-        const res = await api.delete(`/posts/${post.id}/like`);
-        if (res.data.success) {
-          setLikeCount(res.data.data.likeCount);
-        }
+      const res = await fetch(`/api/posts/${post.id}/like`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLiked(data.data.liked);
+        setLikeCount(data.data.likeCount);
       } else {
-        const res = await api.post(`/posts/${post.id}/like`);
-        if (res.data.success) {
-          setLikeCount(res.data.data.likeCount);
-        }
+        // Revert on failure
+        setLiked(prevLiked);
+        setLikeCount(prevCount);
       }
     } catch {
       setLiked(prevLiked);
@@ -63,10 +58,17 @@ export default function PostCard({ post, onPostDeleted }) {
     if (!showComments) {
       setLoadingComments(true);
       try {
-        const res = await api.get(`/posts/${post.id}/comments`);
-        if (res.data.success) {
-          setComments(res.data.data.comments);
+        const res = await fetch(`/api/posts/${post.id}/comments`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (data.success) {
+          setComments(data.data.comments);
         }
+      } catch (err) {
+        console.error('Failed to load comments:', err);
       } finally {
         setLoadingComments(false);
       }
@@ -76,35 +78,30 @@ export default function PostCard({ post, onPostDeleted }) {
 
   const handleAddComment = async (e) => {
     e.preventDefault();
-    if (!newCommentText.trim() || submittingComment) return;
-    if (!isAuthenticated) {
-      alert('Please log in to comment.');
-      return;
-    }
+    if (!newComment.trim() || submittingComment) return;
 
     setSubmittingComment(true);
     try {
-      const res = await api.post(`/posts/${post.id}/comments`, { content: newCommentText.trim() });
-      if (res.data.success) {
-        setComments([...comments, res.data.data.comment]);
-        setCommentCount(commentCount + 1);
-        setNewCommentText('');
+      const res = await fetch(`/api/posts/${post.id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content: newComment.trim() }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setComments((prev) => [...prev, data.data.comment]);
+        setCommentCount((prev) => prev + 1);
+        setNewComment('');
         if (!showComments) setShowComments(true);
       }
+    } catch (err) {
+      console.error('Failed to submit comment:', err);
     } finally {
       setSubmittingComment(false);
-    }
-  };
-
-  const handleDeletePost = async () => {
-    if (!window.confirm('Delete this post?')) return;
-    try {
-      const res = await api.delete(`/posts/${post.id}`);
-      if (res.data.success && onPostDeleted) {
-        onPostDeleted(post.id);
-      }
-    } catch (err) {
-      alert('Failed to delete post.');
     }
   };
 
@@ -129,7 +126,6 @@ export default function PostCard({ post, onPostDeleted }) {
 
   return (
     <article 
-      className="glass-panel"
       style={{
         maxWidth: '470px',
         margin: '0 auto 1.5rem auto',
@@ -140,7 +136,7 @@ export default function PostCard({ post, onPostDeleted }) {
         boxShadow: 'var(--shadow-md)',
       }}
     >
-      {/* 1. Header (User Info + Timestamp + Options) */}
+      {/* 1. Header (Author Avatar, Username & Time) */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -148,35 +144,30 @@ export default function PostCard({ post, onPostDeleted }) {
         padding: '0.75rem 1rem',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-          <Link to={`/profile/${post.author_username}`} style={{ textDecoration: 'none' }}>
-            <div style={{
-              padding: '2px',
-              borderRadius: 'var(--radius-full)',
-              background: 'linear-gradient(45deg, #C5A059, #9A5B32)',
-              display: 'flex',
-            }}>
-              <img 
-                src={post.author_avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${post.author_username}`} 
-                alt={post.author_username}
-                style={{
-                  width: '34px',
-                  height: '34px',
-                  borderRadius: 'var(--radius-full)',
-                  border: '2px solid #FFFFFF',
-                  objectFit: 'cover',
-                  display: 'block',
-                }}
-              />
-            </div>
-          </Link>
+          <div style={{
+            padding: '2px',
+            borderRadius: 'var(--radius-full)',
+            background: 'linear-gradient(45deg, #C5A059, #9A5B32)',
+            display: 'flex',
+          }}>
+            <img 
+              src={post.author_avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${post.author_username}`} 
+              alt={post.author_username}
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: 'var(--radius-full)',
+                border: '2px solid #FFFFFF',
+                objectFit: 'cover',
+                display: 'block',
+              }}
+            />
+          </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <Link 
-              to={`/profile/${post.author_username}`} 
-              style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)', textDecoration: 'none' }}
-            >
+            <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
               {post.author_username}
-            </Link>
+            </span>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>•</span>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.775rem' }}>
               {formatRelativeTime(post.created_at)}
@@ -184,79 +175,16 @@ export default function PostCard({ post, onPostDeleted }) {
           </div>
         </div>
 
-        {/* 3-dots Menu */}
-        <div style={{ position: 'relative' }}>
-          <button
-            type="button"
-            onClick={() => setShowMenu(!showMenu)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
-          >
-            <MoreHorizontal size={18} />
-          </button>
-
-          {showMenu && (
-            <div 
-              className="glass-panel"
-              style={{
-                position: 'absolute',
-                right: 0,
-                top: '100%',
-                backgroundColor: '#FFFFFF',
-                borderRadius: '8px',
-                padding: '0.35rem',
-                minWidth: '130px',
-                zIndex: 20,
-                boxShadow: 'var(--shadow-lg)',
-              }}
-            >
-              {canDelete && (
-                <button
-                  onClick={handleDeletePost}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    width: '100%',
-                    padding: '0.5rem 0.75rem',
-                    background: 'none',
-                    border: 'none',
-                    color: '#ef4444',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    textAlign: 'left',
-                    borderRadius: '4px',
-                  }}
-                >
-                  <Trash2 size={14} />
-                  <span>Delete</span>
-                </button>
-              )}
-              <button
-                onClick={handleShare}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  width: '100%',
-                  padding: '0.5rem 0.75rem',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  fontSize: '0.8rem',
-                  textAlign: 'left',
-                  borderRadius: '4px',
-                }}
-              >
-                <span>{copied ? 'Link Copied!' : 'Copy Link'}</span>
-              </button>
-            </div>
-          )}
-        </div>
+        <button 
+          onClick={handleShare}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
+          title={copied ? 'Link Copied!' : 'Share'}
+        >
+          <MoreHorizontal size={18} />
+        </button>
       </div>
 
-      {/* 2. Post Media / Visual Area */}
+      {/* 2. Visual / Editorial Canvas Area */}
       {post.image_url ? (
         <div 
           onDoubleClick={handleDoubleTap}
@@ -264,7 +192,7 @@ export default function PostCard({ post, onPostDeleted }) {
         >
           <img 
             src={post.image_url} 
-            alt="Post Visual" 
+            alt="Post" 
             style={{ width: '100%', maxHeight: '480px', objectFit: 'cover', display: 'block' }}
           />
 
@@ -275,9 +203,9 @@ export default function PostCard({ post, onPostDeleted }) {
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%) scale(1.2)',
-              animation: 'pulseGlow 0.8s ease-out forwards',
+              animation: 'fadeIn 0.2s ease-out',
               color: '#FFFFFF',
-              filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))',
+              filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))',
             }}>
               <Heart size={80} fill="#FFFFFF" />
             </div>
@@ -296,7 +224,6 @@ export default function PostCard({ post, onPostDeleted }) {
             fontSize: '1.05rem',
             lineHeight: '1.65',
             color: 'var(--text-primary)',
-            fontStyle: 'normal',
             cursor: 'pointer',
           }}
         >
@@ -369,6 +296,7 @@ export default function PostCard({ post, onPostDeleted }) {
               padding: 0,
               display: 'flex',
             }}
+            title={copied ? 'Link Copied!' : 'Copy Link'}
           >
             <Send size={22} strokeWidth={2} />
           </button>
@@ -377,28 +305,25 @@ export default function PostCard({ post, onPostDeleted }) {
         {/* Bookmark */}
         <button
           type="button"
-          onClick={() => alert('Post saved to collection')}
+          onClick={() => alert('Post saved to collection!')}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', padding: 0 }}
         >
           <Bookmark size={22} strokeWidth={2} />
         </button>
       </div>
 
-      {/* 4. Like Count & Caption */}
+      {/* 4. Likes Count & Caption */}
       <div style={{ padding: '0 1rem', marginBottom: '0.5rem' }}>
         <div style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '0.35rem' }}>
           {likeCount.toLocaleString()} {likeCount === 1 ? 'like' : 'likes'}
         </div>
 
-        {/* If the post has an image, render the text caption below the image like IG */}
+        {/* If image post, render caption under image */}
         {post.image_url && (
           <div style={{ fontSize: '0.875rem', lineHeight: '1.5' }}>
-            <Link 
-              to={`/profile/${post.author_username}`}
-              style={{ fontWeight: 700, color: 'var(--text-primary)', textDecoration: 'none', marginRight: '0.4rem' }}
-            >
+            <strong style={{ marginRight: '0.4rem', color: 'var(--text-primary)' }}>
               {post.author_username}
-            </Link>
+            </strong>
             <span style={{ color: 'var(--text-primary)' }}>{post.content}</span>
           </div>
         )}
@@ -429,6 +354,8 @@ export default function PostCard({ post, onPostDeleted }) {
           <div style={{ marginTop: '0.5rem', marginBottom: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             {loadingComments ? (
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Loading comments...</div>
+            ) : comments.length === 0 ? (
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No comments yet. Be the first to comment!</div>
             ) : (
               comments.map((c) => (
                 <div key={c.id} style={{ fontSize: '0.825rem', lineHeight: '1.4' }}>
@@ -441,7 +368,7 @@ export default function PostCard({ post, onPostDeleted }) {
         )}
       </div>
 
-      {/* 6. Inline "Add a Comment..." Input */}
+      {/* 6. Inline "Add a comment..." Bar */}
       <form 
         onSubmit={handleAddComment}
         style={{
@@ -455,8 +382,8 @@ export default function PostCard({ post, onPostDeleted }) {
         <input 
           type="text"
           placeholder="Add a comment..."
-          value={newCommentText}
-          onChange={(e) => setNewCommentText(e.target.value)}
+          value={newComment}
+          onChange={(e) => setNewComment(e.target.value)}
           style={{
             flex: 1,
             border: 'none',
@@ -468,18 +395,18 @@ export default function PostCard({ post, onPostDeleted }) {
         />
         <button
           type="submit"
-          disabled={!newCommentText.trim() || submittingComment}
+          disabled={!newComment.trim() || submittingComment}
           style={{
             background: 'none',
             border: 'none',
-            color: newCommentText.trim() ? 'var(--primary)' : 'var(--text-muted)',
+            color: newComment.trim() ? 'var(--primary)' : 'var(--text-muted)',
             fontWeight: 700,
             fontSize: '0.85rem',
-            cursor: newCommentText.trim() ? 'pointer' : 'default',
+            cursor: newComment.trim() ? 'pointer' : 'default',
             paddingLeft: '0.5rem',
           }}
         >
-          Post
+          {submittingComment ? '...' : 'Post'}
         </button>
       </form>
 

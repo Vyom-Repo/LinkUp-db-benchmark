@@ -6,55 +6,45 @@ const pool = new Pool({
   port: config.postgres.port,
   database: config.postgres.database,
   user: config.postgres.user,
-  password: config.postgres.password || undefined,
-  max: config.postgres.maxPool,
+  password: config.postgres.password,
+  max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
 });
 
 pool.on('error', (err) => {
-  console.error('[PostgreSQL] Unexpected error on idle client:', err.message);
+  console.error('[PostgreSQL] Unexpected pool error on idle client:', err.message);
 });
 
-/**
- * Execute a parameterized query
- * @param {string} text - SQL query string
- * @param {Array} params - Query parameters
- */
-const query = (text, params) => pool.query(text, params);
+async function query(text, params) {
+  const start = process.hrtime.bigint();
+  const res = await pool.query(text, params);
+  const end = process.hrtime.bigint();
+  const durationMs = Number(end - start) / 1e6;
+  return { ...res, durationMs };
+}
 
-/**
- * Acquire a dedicated client for transactions or session-level settings
- */
-const getClient = () => pool.connect();
+async function getClient() {
+  return await pool.connect();
+}
 
-/**
- * Check PostgreSQL health
- */
-const checkHealth = async () => {
+async function testPostgresConnection() {
+  const client = await pool.connect();
   try {
-    const start = Date.now();
-    const res = await pool.query('SELECT 1 as healthy, NOW() as server_time');
-    const latency = Date.now() - start;
+    const res = await client.query('SELECT NOW() as current_time, current_database() as db_name;');
     return {
-      status: 'connected',
-      latencyMs: latency,
-      serverTime: res.rows[0].server_time,
-      totalCount: pool.totalCount,
-      idleCount: pool.idleCount,
-      waitingCount: pool.waitingCount,
+      connected: true,
+      database: res.rows[0].db_name,
+      timestamp: res.rows[0].current_time,
     };
-  } catch (error) {
-    return {
-      status: 'disconnected',
-      error: error.message,
-    };
+  } finally {
+    client.release();
   }
-};
+}
 
 module.exports = {
   pool,
   query,
   getClient,
-  checkHealth,
+  testPostgresConnection,
 };

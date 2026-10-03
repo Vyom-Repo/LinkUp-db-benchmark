@@ -1,233 +1,239 @@
+const { Client } = require('pg');
 const bcrypt = require('bcryptjs');
-const { pool, query } = require('../config/postgres');
-const { connectMongo, getDb, closeMongo } = require('../config/mongodb');
+const crypto = require('crypto');
 const config = require('../config/env');
+const { pool, query } = require('../config/postgres');
+const { connectMongo, closeMongo } = require('../config/mongodb');
 
-const FIXED_ADMIN_ID = 'a0000000-0000-4000-8000-000000000001';
+async function ensurePostgresDatabase() {
+  const rootClient = new Client({
+    host: config.postgres.host,
+    port: config.postgres.port,
+    database: 'postgres',
+    user: config.postgres.user,
+    password: config.postgres.password,
+  });
 
-const initPostgres = async () => {
-  console.log('[PostgreSQL] Initializing schema, tables, indexes, and triggers...');
+  await rootClient.connect();
+  try {
+    const checkDb = await rootClient.query(
+      "SELECT 1 FROM pg_database WHERE datname = $1;",
+      [config.postgres.database]
+    );
 
-  const ddl = `
-    -- Enable cryptographic extensions
-    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+    if (checkDb.rows.length === 0) {
+      console.log(`[PostgreSQL] Creating database "${config.postgres.database}"...`);
+      await rootClient.query(`CREATE DATABASE "${config.postgres.database}";`);
+      console.log(`[PostgreSQL] Database "${config.postgres.database}" created.`);
+    } else {
+      console.log(`[PostgreSQL] Database "${config.postgres.database}" already exists.`);
+    }
+  } finally {
+    await rootClient.end();
+  }
+}
 
-    -- 1. USERS TABLE
+async function initPostgresSchema() {
+  console.log('[PostgreSQL] Initializing 3NF schema tables & indexes...');
+
+  // 1. Users Table
+  await query(`
     CREATE TABLE IF NOT EXISTS users (
-        id UUID PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        username VARCHAR(50) NOT NULL UNIQUE,
-        email VARCHAR(255) NOT NULL UNIQUE,
-        password_hash VARCHAR(255) NOT NULL,
-        bio TEXT DEFAULT '',
-        avatar_url TEXT DEFAULT '',
-        is_admin BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      id UUID PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      username VARCHAR(50) NOT NULL UNIQUE,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      password_hash VARCHAR(255) NOT NULL,
+      bio TEXT,
+      avatar_url TEXT,
+      is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+  `);
 
-    -- 2. POSTS TABLE
+  // 2. Posts Table
+  await query(`
     CREATE TABLE IF NOT EXISTS posts (
-        id UUID PRIMARY KEY,
-        author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        content TEXT NOT NULL,
-        like_count INTEGER DEFAULT 0 CHECK (like_count >= 0),
-        comment_count INTEGER DEFAULT 0 CHECK (comment_count >= 0),
-        search_vector TSVECTOR,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      id UUID PRIMARY KEY,
+      author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      content TEXT NOT NULL,
+      image_url TEXT,
+      like_count INT NOT NULL DEFAULT 0,
+      comment_count INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+  `);
 
-    CREATE INDEX IF NOT EXISTS idx_posts_created_at_desc ON posts(created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_posts_author_created ON posts(author_id, created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_posts_search_vector ON posts USING GIN(search_vector);
-
-    -- 3. COMMENTS TABLE
-    CREATE TABLE IF NOT EXISTS comments (
-        id UUID PRIMARY KEY,
-        post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-        author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        content TEXT NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_comments_post_created ON comments(post_id, created_at ASC);
-    CREATE INDEX IF NOT EXISTS idx_comments_author_id ON comments(author_id);
-
-    -- 4. POST LIKES TABLE (JUNCTION)
+  // 3. Post Likes Table (Normalized 3NF relational model)
+  await query(`
     CREATE TABLE IF NOT EXISTS post_likes (
-        post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (post_id, user_id)
+      id UUID PRIMARY KEY,
+      post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT uq_post_user_like UNIQUE (post_id, user_id)
     );
+  `);
 
-    CREATE INDEX IF NOT EXISTS idx_post_likes_user_id ON post_likes(user_id);
+  // 4. Comments Table
+  await query(`
+    CREATE TABLE IF NOT EXISTS comments (
+      id UUID PRIMARY KEY,
+      post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+      author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      content TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
 
-    -- 5. TRIGGERS
-    -- A. Full-Text Search Vector Generator Trigger
-    CREATE OR REPLACE FUNCTION posts_search_vector_update() RETURNS trigger AS $$
-    BEGIN
-        NEW.search_vector := to_tsvector('english', coalesce(NEW.content, ''));
-        RETURN NEW;
-    END;
-    $$ LANGUAGE plpgsql;
+  // 5. Follows Table
+  await query(`
+    CREATE TABLE IF NOT EXISTS follows (
+      id UUID PRIMARY KEY,
+      follower_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      following_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT uq_follower_following UNIQUE (follower_id, following_id)
+    );
+  `);
 
-    DROP TRIGGER IF EXISTS trg_posts_search_vector ON posts;
-    CREATE TRIGGER trg_posts_search_vector
-    BEFORE INSERT OR UPDATE OF content ON posts
-    FOR EACH ROW EXECUTE FUNCTION posts_search_vector_update();
+  // 6. Benchmarks Table (Logs academic comparison metrics)
+  await query(`
+    CREATE TABLE IF NOT EXISTS benchmarks (
+      id UUID PRIMARY KEY,
+      database VARCHAR(20) NOT NULL,
+      operation VARCHAR(50) NOT NULL,
+      record_count INT NOT NULL,
+      latency_ms NUMERIC(10, 3) NOT NULL,
+      memory_mb NUMERIC(10, 2) NOT NULL,
+      timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
 
-    -- B. Like Counter Maintenance Triggers
-    CREATE OR REPLACE FUNCTION update_post_like_count() RETURNS trigger AS $$
-    BEGIN
-        IF (TG_OP = 'INSERT') THEN
-            UPDATE posts SET like_count = like_count + 1 WHERE id = NEW.post_id;
-            RETURN NEW;
-        ELSIF (TG_OP = 'DELETE') THEN
-            UPDATE posts SET like_count = GREATEST(like_count - 1, 0) WHERE id = OLD.post_id;
-            RETURN OLD;
-        END IF;
-    END;
-    $$ LANGUAGE plpgsql;
+  // Optimization Indexes for High Performance Queries
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author_id);
+    CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_likes_post ON post_likes(post_id);
+    CREATE INDEX IF NOT EXISTS idx_likes_user ON post_likes(user_id);
+    CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id);
+    CREATE INDEX IF NOT EXISTS idx_comments_created ON comments(created_at ASC);
+    CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
+    CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
+  `);
 
-    DROP TRIGGER IF EXISTS trg_post_likes_count ON post_likes;
-    CREATE TRIGGER trg_post_likes_count
-    AFTER INSERT OR DELETE ON post_likes
-    FOR EACH ROW EXECUTE FUNCTION update_post_like_count();
+  console.log('✅ [PostgreSQL] Schema, tables, constraints, and indexes initialized successfully.');
+}
 
-    -- C. Comment Counter Maintenance Triggers
-    CREATE OR REPLACE FUNCTION update_post_comment_count() RETURNS trigger AS $$
-    BEGIN
-        IF (TG_OP = 'INSERT') THEN
-            UPDATE posts SET comment_count = comment_count + 1 WHERE id = NEW.post_id;
-            RETURN NEW;
-        ELSIF (TG_OP = 'DELETE') THEN
-            UPDATE posts SET comment_count = GREATEST(comment_count - 1, 0) WHERE id = OLD.post_id;
-            RETURN OLD;
-        END IF;
-    END;
-    $$ LANGUAGE plpgsql;
-
-    DROP TRIGGER IF EXISTS trg_comments_count ON comments;
-    CREATE TRIGGER trg_comments_count
-    AFTER INSERT OR DELETE ON comments
-    FOR EACH ROW EXECUTE FUNCTION update_post_comment_count();
-  `;
-
-  await query(ddl);
-  console.log('[PostgreSQL] Tables, indexes, and triggers initialized successfully.');
-};
-
-const initMongo = async () => {
-  console.log('[MongoDB] Initializing collections and indexes...');
+async function initMongoSchema() {
+  console.log('[MongoDB] Initializing collections & performance indexes...');
   const db = await connectMongo();
 
-  // 1. Users collection & indexes
-  const usersColl = db.collection('users');
-  await usersColl.createIndex({ username: 1 }, { unique: true });
-  await usersColl.createIndex({ email: 1 }, { unique: true });
+  // Create Collections if not already existing
+  const collections = ['users', 'posts', 'post_likes', 'comments', 'follows', 'benchmarks'];
+  const existing = (await db.listCollections().toArray()).map((c) => c.name);
 
-  // 2. Posts collection & indexes
-  const postsColl = db.collection('posts');
-  await postsColl.createIndex({ createdAt: -1 });
-  await postsColl.createIndex({ authorId: 1, createdAt: -1 });
-  await postsColl.createIndex({ content: 'text' }, { name: 'content_text_idx' });
+  for (const col of collections) {
+    if (!existing.includes(col)) {
+      await db.createCollection(col);
+    }
+  }
 
-  // 3. Comments collection & indexes
-  const commentsColl = db.collection('comments');
-  await commentsColl.createIndex({ postId: 1, createdAt: 1 });
-  await commentsColl.createIndex({ authorId: 1 });
+  // 1. Users Indexes
+  await db.collection('users').createIndex({ username: 1 }, { unique: true });
+  await db.collection('users').createIndex({ email: 1 }, { unique: true });
 
-  // 4. Post_likes collection & indexes
-  const likesColl = db.collection('post_likes');
-  await likesColl.createIndex({ postId: 1, userId: 1 }, { unique: true });
-  await likesColl.createIndex({ userId: 1 });
+  // 2. Posts Indexes
+  await db.collection('posts').createIndex({ authorId: 1 });
+  await db.collection('posts').createIndex({ createdAt: -1 });
 
-  console.log('[MongoDB] Collections and indexes initialized successfully.');
-};
+  // 3. Post Likes Indexes (Mirroring PostgreSQL unique composite constraint)
+  await db.collection('post_likes').createIndex({ postId: 1, userId: 1 }, { unique: true });
+  await db.collection('post_likes').createIndex({ postId: 1 });
+  await db.collection('post_likes').createIndex({ userId: 1 });
 
-const seedAdminUser = async () => {
-  console.log('[Seed] Ensuring default admin account exists in both databases...');
-  const passwordHash = await bcrypt.hash(config.admin.password, 10);
-  const adminDoc = {
-    name: 'Sync Administrator',
-    username: 'admin',
-    email: config.admin.email,
-    passwordHash: passwordHash,
-    bio: 'System Administrator & Database Analytics Lab Supervisor',
-    avatarUrl: '',
-    isAdmin: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  // 4. Comments Indexes
+  await db.collection('comments').createIndex({ postId: 1 });
+  await db.collection('comments').createIndex({ authorId: 1 });
+  await db.collection('comments').createIndex({ createdAt: 1 });
 
-  // Seed into PostgreSQL
-  const pgSql = `
-    INSERT INTO users (id, name, username, email, password_hash, bio, avatar_url, is_admin, created_at, updated_at)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-    ON CONFLICT (email) DO UPDATE SET
-      password_hash = EXCLUDED.password_hash,
-      is_admin = TRUE,
-      updated_at = NOW();
-  `;
-  await query(pgSql, [
-    FIXED_ADMIN_ID,
-    adminDoc.name,
-    adminDoc.username,
-    adminDoc.email,
-    adminDoc.passwordHash,
-    adminDoc.bio,
-    adminDoc.avatarUrl,
-    true,
-    adminDoc.createdAt,
-    adminDoc.updatedAt,
-  ]);
-  console.log('[Seed] PostgreSQL admin user ready:', adminDoc.email);
+  // 5. Follows Indexes
+  await db.collection('follows').createIndex({ followerId: 1, followingId: 1 }, { unique: true });
+  await db.collection('follows').createIndex({ followerId: 1 });
+  await db.collection('follows').createIndex({ followingId: 1 });
 
-  // Seed into MongoDB
-  const db = getDb();
+  // 6. Benchmarks Indexes
+  await db.collection('benchmarks').createIndex({ database: 1, operation: 1, timestamp: -1 });
+
+  console.log('✅ [MongoDB] Collections and comparative indexes initialized successfully.');
+}
+
+async function seedAdminUser() {
+  console.log('[Admin] Ensuring root administrator account exists in both databases...');
+  const adminId = 'a0000000-0000-4000-8000-000000000001';
+  const email = 'admin@sync.local';
+  const username = 'admin';
+  const name = 'Sync Administrator';
+  const passwordHash = await bcrypt.hash('Admin@Sync2026!', 10);
+  const now = new Date();
+
+  // 1. PostgreSQL Admin
+  await query(
+    `INSERT INTO users (id, name, username, email, password_hash, is_admin, bio, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     ON CONFLICT (email) DO NOTHING;`,
+    [adminId, name, username, email, passwordHash, true, 'System administrator for database telemetry.', now, now]
+  );
+
+  // 2. MongoDB Admin
+  const db = await connectMongo();
   await db.collection('users').updateOne(
-    { email: adminDoc.email },
+    { email },
     {
-      $set: {
-        name: adminDoc.name,
-        username: adminDoc.username,
-        email: adminDoc.email,
-        passwordHash: adminDoc.passwordHash,
-        bio: adminDoc.bio,
-        avatarUrl: adminDoc.avatarUrl,
-        isAdmin: true,
-        updatedAt: new Date(),
-      },
       $setOnInsert: {
-        _id: FIXED_ADMIN_ID,
-        createdAt: new Date(),
+        _id: adminId,
+        id: adminId,
+        name,
+        username,
+        email,
+        passwordHash,
+        isAdmin: true,
+        bio: 'System administrator for database telemetry.',
+        avatarUrl: null,
+        createdAt: now,
+        updatedAt: now,
       },
     },
     { upsert: true }
   );
-  console.log('[Seed] MongoDB admin user ready:', adminDoc.email);
-};
 
-const runInit = async () => {
+  console.log('✅ [Admin] Administrator account verified: admin@sync.local (Admin@Sync2026!)');
+}
+
+async function run() {
   try {
-    await initPostgres();
-    await initMongo();
+    console.log('========================================================');
+    console.log('⚡ Initializing Database Foundations: PostgreSQL & MongoDB');
+    console.log('========================================================');
+
+    await ensurePostgresDatabase();
+    await initPostgresSchema();
+    await initMongoSchema();
     await seedAdminUser();
-    console.log('\n======================================================');
-    console.log('✅ Both PostgreSQL and MongoDB databases initialized!');
-    console.log(`Admin Email:    ${config.admin.email}`);
-    console.log(`Admin Password: ${config.admin.password}`);
-    console.log('======================================================\n');
-  } catch (error) {
-    console.error('❌ Database initialization failed:', error);
-    process.exitCode = 1;
+
+    console.log('========================================================');
+    console.log('🚀 Database initialization complete and verified!');
+    console.log('========================================================');
+  } catch (err) {
+    console.error('❌ Database initialization error:', err);
+    process.exit(1);
   } finally {
     await pool.end();
     await closeMongo();
   }
-};
+}
 
-runInit();
+run();
