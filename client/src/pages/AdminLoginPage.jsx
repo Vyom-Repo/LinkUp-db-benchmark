@@ -9,7 +9,7 @@ export default function AdminLoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   
-  const { login, user, isAuthenticated } = useAuth();
+  const { login, logout, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   // If already authenticated as admin, go straight to /admin
@@ -30,43 +30,28 @@ export default function AdminLoginPage() {
 
     setSubmitting(true);
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: identifier.trim().toLowerCase(),
-          password,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        const msg = data.error?.message || '';
-        if (msg.toLowerCase().includes('password')) {
-          setErrorMsg('Incorrect password.');
-        } else if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('user')) {
-          setErrorMsg('Incorrect administrator ID or account not found.');
-        } else {
-          setErrorMsg(msg || 'Incorrect password.');
-        }
-        setSubmitting(false);
-        return;
-      }
+      // Authenticate directly through AuthContext
+      const loggedUser = await login(identifier.trim().toLowerCase(), password);
 
       // Verify that user possesses platform administrator privileges
-      const loggedUser = data.data.user;
-      if (!loggedUser.isAdmin) {
+      if (!loggedUser || !loggedUser.isAdmin) {
+        logout();
         setErrorMsg('Access denied: Account does not have administrator privileges.');
         setSubmitting(false);
         return;
       }
 
-      // Store authenticated admin session & navigate to dashboard
-      login(loggedUser, data.data.token);
+      // Successfully authenticated as Admin -> Go directly to dashboard
       navigate('/admin', { replace: true });
     } catch (err) {
-      setErrorMsg('Network error connecting to LinkUp authentication service.');
+      const msg = err.message || '';
+      if (msg.toLowerCase().includes('password')) {
+        setErrorMsg('Incorrect password.');
+      } else if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('user')) {
+        setErrorMsg('Incorrect administrator ID or account not found.');
+      } else {
+        setErrorMsg(msg || 'Incorrect password.');
+      }
     } finally {
       setSubmitting(false);
     }
