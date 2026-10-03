@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LogIn, UserPlus, LogOut, Home, Compass, Search } from 'lucide-react';
+import { LogIn, UserPlus, LogOut, Home, Compass, Search, Shield } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
@@ -180,6 +180,31 @@ export default function Navbar() {
                   </span>
                 </div>
               </Link>
+
+              {/* Discreet Admin Gateway — Visible ONLY to Verified Administrators */}
+              {user?.isAdmin && (
+                <Link
+                  to="/admin"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    backgroundColor: '#0F172A',
+                    color: '#38BDF8',
+                    padding: '0.35rem 0.65rem',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    border: '1px solid rgba(56, 189, 248, 0.4)',
+                    boxShadow: '0 2px 6px rgba(15, 23, 42, 0.15)'
+                  }}
+                  title="Open Admin Benchmark Lab"
+                >
+                  <Shield size={12} />
+                  <span>Admin Lab</span>
+                </Link>
+              )}
 
               <button
                 onClick={handleLogout}

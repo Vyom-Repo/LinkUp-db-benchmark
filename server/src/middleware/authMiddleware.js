@@ -23,4 +23,14 @@ function requireAuth(req, res, next) {
   }
 }
 
-module.exports = { requireAuth };
+function requireAdmin(req, res, next) {
+  if (!req.user || !req.user.isAdmin) {
+    return res.status(403).json({
+      success: false,
+      error: { message: 'Access denied: Administrator privileges required.' },
+    });
+  }
+  next();
+}
+
+module.exports = { requireAuth, requireAdmin };
