@@ -33,6 +33,7 @@ export default function AdminDashboardPage() {
   // Switch Animation & Confirmation Modal
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const [switchStage, setSwitchStage] = useState(0); // 0: Idle, 1: Handoff, 2: Complete
   const [switchHistory, setSwitchHistory] = useState([
     { fromEngine: 'POSTGRES', toEngine: 'MONGODB', timestamp: '17:12:15', durationMs: 148 }
   ]);
@@ -175,27 +176,31 @@ export default function AdminDashboardPage() {
       });
       const data = await res.json();
 
+      if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || data.error || 'Failed to switch database engine');
+      }
+
       setTimeout(() => {
         setSwitchStage(2);
-        if (data.success) {
-          setActiveEngine(data.activeEngine);
-          setLastSwitchMeta({
-            time: data.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            durationMs: data.durationMs || 148,
-          });
-          if (data.switchHistory) {
-            setSwitchHistory(data.switchHistory);
-          }
-          fetchMetrics();
+        setActiveEngine(data.activeEngine);
+        setLastSwitchMeta({
+          time: data.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          durationMs: data.durationMs || 148,
+        });
+        if (data.switchHistory) {
+          setSwitchHistory(data.switchHistory);
         }
+        fetchMetrics();
+
         setTimeout(() => {
           setSwitching(false);
           setSwitchStage(0);
-        }, 500);
-      }, 700);
+        }, 400);
+      }, 600);
 
     } catch (err) {
       console.error('Switch failed:', err);
+      alert(`Database switch error: ${err.message}`);
       setSwitching(false);
       setSwitchStage(0);
     }
@@ -392,6 +397,35 @@ export default function AdminDashboardPage() {
               Control the database currently powering LinkUp
             </p>
           </div>
+
+          {/* Active Switch Status Bar */}
+          {switching && (
+            <div style={{
+              backgroundColor: '#FEF3C7',
+              border: '1px solid #FCD34D',
+              borderRadius: '10px',
+              padding: '0.75rem 1.25rem',
+              marginBottom: '1.75rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '0.825rem',
+              color: '#92400E',
+              fontWeight: 700
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                <ArrowRightLeft size={15} className="animate-spin" style={{ color: '#D97706' }} />
+                <span>
+                  {switchStage === 1
+                    ? `Re-routing application traffic to ${targetEngineName}...`
+                    : `Handoff complete! ${targetEngineName} is now active.`}
+                </span>
+              </div>
+              <span style={{ fontSize: '0.725rem', fontFamily: 'monospace', color: '#B45309' }}>
+                {switchStage === 1 ? 'SWITCHING ENGINES...' : 'LIVE ●'}
+              </span>
+            </div>
+          )}
 
           {/* Cards & Transition Icon */}
           <div style={{
