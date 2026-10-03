@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import FeedPage from './pages/FeedPage';
 import ProfilePage from './pages/ProfilePage';
+import ExplorePage from './pages/ExplorePage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function AppRoutes() {
@@ -43,6 +44,16 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <ProfilePage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Discovery & Technical Discussions Explore Page */}
+          <Route 
+            path="/explore" 
+            element={
+              <ProtectedRoute>
+                <ExplorePage />
               </ProtectedRoute>
             } 
           />

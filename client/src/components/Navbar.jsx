@@ -15,6 +15,16 @@ export default function Navbar() {
     navigate('/login');
   };
 
+  const [navSearch, setNavSearch] = React.useState('');
+
+  const handleNavSearch = (e) => {
+    e.preventDefault();
+    if (navSearch.trim()) {
+      navigate(`/explore?q=${encodeURIComponent(navSearch.trim())}`);
+      setNavSearch('');
+    }
+  };
+
   return (
     <nav style={{
       position: 'sticky',
@@ -28,52 +38,104 @@ export default function Navbar() {
     }}>
       <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         
-        {/* Brand */}
-        <Link 
-          to={isAuthenticated ? "/feed" : "/"} 
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.65rem', 
-            textDecoration: 'none',
-            color: 'inherit'
-          }}
-        >
-          <img 
-            src="/logo.jpg" 
-            alt="LinkUp Logo" 
-            style={{
-              width: '34px',
-              height: '34px',
-              borderRadius: '8px',
-              objectFit: 'cover',
-              boxShadow: '0 2px 6px rgba(44, 39, 32, 0.08)'
-            }} 
-          />
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '1.3rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-primary)', lineHeight: 1.1 }}>
-              LinkUp
-            </span>
-          </div>
-        </Link>
+        {/* Left: Brand + Quick Nav */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          <Link 
+            to={isAuthenticated ? "/feed" : "/"} 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.65rem', 
+              textDecoration: 'none',
+              color: 'inherit'
+            }}
+          >
+            <img 
+              src="/logo.jpg" 
+              alt="LinkUp Logo" 
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '8px',
+                objectFit: 'cover',
+                boxShadow: '0 2px 6px rgba(44, 39, 32, 0.08)'
+              }} 
+            />
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '1.3rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-primary)', lineHeight: 1.1 }}>
+                LinkUp
+              </span>
+            </div>
+          </Link>
 
-        {/* Center: Search / Quick Nav when logged in */}
+          {/* Quick Page Links */}
+          {isAuthenticated && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <Link
+                to="/feed"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.4rem 0.75rem',
+                  borderRadius: '6px',
+                  textDecoration: 'none',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  color: isCurrent('/feed') ? 'var(--primary)' : 'var(--text-secondary)',
+                  backgroundColor: isCurrent('/feed') ? 'var(--primary-light)' : 'transparent',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Home size={15} />
+                <span>Feed</span>
+              </Link>
+
+              <Link
+                to="/explore"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.4rem 0.75rem',
+                  borderRadius: '6px',
+                  textDecoration: 'none',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  color: isCurrent('/explore') ? 'var(--primary)' : 'var(--text-secondary)',
+                  backgroundColor: isCurrent('/explore') ? 'var(--primary-light)' : 'transparent',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Compass size={15} />
+                <span>Explore</span>
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* Center: Search when logged in */}
         {isAuthenticated && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            backgroundColor: '#F7F5F0',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--radius-full)',
-            padding: '0.35rem 0.85rem',
-            width: '100%',
-            maxWidth: '320px',
-            gap: '0.5rem'
-          }}>
+          <form 
+            onSubmit={handleNavSearch}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: '#F7F5F0',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-full)',
+              padding: '0.35rem 0.85rem',
+              width: '100%',
+              maxWidth: '320px',
+              gap: '0.5rem'
+            }}
+          >
             <Search size={15} style={{ color: 'var(--text-muted)' }} />
             <input 
               type="text"
-              placeholder="Search discussions, topics, people..."
+              placeholder="Search discussions or topics..."
+              value={navSearch}
+              onChange={(e) => setNavSearch(e.target.value)}
               style={{
                 border: 'none',
                 background: 'transparent',
@@ -83,7 +145,7 @@ export default function Navbar() {
                 color: 'var(--text-primary)'
               }}
             />
-          </div>
+          </form>
         )}
 
         {/* Right Section: Auth State Dependent */}

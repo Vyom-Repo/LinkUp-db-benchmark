@@ -372,7 +372,7 @@ export default function ProfilePage() {
                 </Link>
 
                 <button 
-                  onClick={() => alert('Explore community topics and trends')}
+                  onClick={() => navigate('/explore')}
                   style={{
                     display: 'flex',
                     alignItems: 'center',

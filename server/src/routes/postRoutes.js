@@ -3,6 +3,7 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/authMiddleware');
 const {
   getFeed,
+  getPopularDiscussions,
   createPost,
   toggleLike,
   getComments,
@@ -12,6 +13,7 @@ const {
 
 // All post endpoints require active student login session
 router.get('/', requireAuth, getFeed);
+router.get('/popular', requireAuth, getPopularDiscussions);
 router.post('/', requireAuth, createPost);
 router.delete('/:id', requireAuth, deletePost);
 router.post('/:id/like', requireAuth, toggleLike);

@@ -3,13 +3,15 @@ const { query } = require('../config/postgres');
 const { getMongoDb } = require('../config/mongodb');
 const { getActiveEngine } = require('../config/engineState');
 
-// 1. GET FEED POSTS (WITH AUTHOR & LIKE STATUS - DYNAMIC REFRESH)
+// 1. GET FEED & EXPLORE POSTS (WITH AUTHOR, LIKE STATUS, SORT & SEARCH)
 async function getFeed(req, res) {
   try {
     const currentUserId = req.user?.id;
     const limit = parseInt(req.query.limit, 10) || 20;
     const page = parseInt(req.query.page, 10) || 1;
     const offset = (page - 1) * limit;
+    const sort = req.query.sort || ''; // 'trending' | 'latest' | 'liked' | 'discussed'
+    const q = req.query.q || req.query.search || '';
     const seed = req.query.seed || req.query._t || Date.now().toString();
     const activeEngine = getActiveEngine();
 
@@ -18,10 +20,47 @@ async function getFeed(req, res) {
     // ─────────────────────────────────────────────────────────────
     if (activeEngine === 'MONGODB') {
       const mongoDb = getMongoDb();
+      const pipeline = [];
 
-      // Sample community discussions directly across all authors
-      const communityPosts = await mongoDb.collection('posts').aggregate([
-        { $sample: { size: limit } },
+      // 1. Full text / regex search filter
+      if (q && q.trim()) {
+        pipeline.push({
+          $match: {
+            content: { $regex: q.trim(), $options: 'i' }
+          }
+        });
+      }
+
+      // 2. Sorting Workload
+      if (sort === 'trending') {
+        pipeline.push(
+          {
+            $addFields: {
+              engagement: { $add: ['$likeCount', '$commentCount'] }
+            }
+          },
+          { $sort: { engagement: -1, createdAt: -1 } }
+        );
+      } else if (sort === 'liked') {
+        pipeline.push({ $sort: { likeCount: -1, createdAt: -1 } });
+      } else if (sort === 'discussed') {
+        pipeline.push({ $sort: { commentCount: -1, createdAt: -1 } });
+      } else if (sort === 'latest') {
+        pipeline.push({ $sort: { createdAt: -1 } });
+      } else if (!q) {
+        // Random community sample for dynamic feed refresh
+        pipeline.push({ $sample: { size: limit } });
+      } else {
+        pipeline.push({ $sort: { createdAt: -1 } });
+      }
+
+      // 3. Pagination
+      if (sort || q) {
+        pipeline.push({ $skip: offset }, { $limit: limit });
+      }
+
+      // 4. Author Lookup & Projection
+      pipeline.push(
         {
           $lookup: {
             from: 'users',
@@ -31,19 +70,27 @@ async function getFeed(req, res) {
           }
         },
         { $unwind: { path: '$author', preserveNullAndEmptyArrays: true } }
-      ]).toArray();
+      );
 
-      const combined = communityPosts;
+      const communityPosts = await mongoDb.collection('posts').aggregate(pipeline).toArray();
+
+      // Total count if search query was performed
+      let totalCount = null;
+      if (q && q.trim()) {
+        totalCount = await mongoDb.collection('posts').countDocuments({
+          content: { $regex: q.trim(), $options: 'i' }
+        });
+      }
 
       // Check liked status in MongoDB
-      const postIds = combined.map((p) => p._id.toString());
+      const postIds = communityPosts.map((p) => p._id.toString());
       const myLikes = currentUserId ? await mongoDb.collection('post_likes').find({
         userId: currentUserId,
         postId: { $in: postIds }
       }).toArray() : [];
       const likedSet = new Set(myLikes.map((l) => l.postId));
 
-      const formattedPosts = combined.map((p) => ({
+      const formattedPosts = communityPosts.map((p) => ({
         id: p._id.toString(),
         author_id: p.authorId,
         content: p.content,
@@ -64,6 +111,8 @@ async function getFeed(req, res) {
           posts: formattedPosts,
           page,
           limit,
+          totalCount,
+          hasMore: formattedPosts.length === limit,
           engine: 'MONGODB',
         },
       });
@@ -71,8 +120,39 @@ async function getFeed(req, res) {
 
     // ─────────────────────────────────────────────────────────────
     // BRANCH B: ACTIVE ENGINE IS POSTGRESQL (DEFAULT)
-    // Dynamic refresh: Shuffles discussions using seed while pinning user's new posts
     // ─────────────────────────────────────────────────────────────
+    let whereClause = '';
+    const params = [currentUserId || null];
+    let pIdx = 2;
+
+    if (q && q.trim()) {
+      whereClause = `WHERE p.content ILIKE $${pIdx}`;
+      params.push(`%${q.trim()}%`);
+      pIdx++;
+    }
+
+    let orderClause = '';
+    if (sort === 'trending') {
+      orderClause = 'ORDER BY (p.like_count + p.comment_count) DESC, p.created_at DESC';
+    } else if (sort === 'liked') {
+      orderClause = 'ORDER BY p.like_count DESC, p.created_at DESC';
+    } else if (sort === 'discussed') {
+      orderClause = 'ORDER BY p.comment_count DESC, p.created_at DESC';
+    } else if (sort === 'latest') {
+      orderClause = 'ORDER BY p.created_at DESC';
+    } else if (!q) {
+      orderClause = `ORDER BY hashtext(p.id::text || $${pIdx}) DESC`;
+      params.push(seed);
+      pIdx++;
+    } else {
+      orderClause = 'ORDER BY p.created_at DESC';
+    }
+
+    const limitParamIdx = pIdx++;
+    params.push(limit);
+    const offsetParamIdx = pIdx++;
+    params.push(offset);
+
     const sql = `
       SELECT 
         p.id,
@@ -87,15 +167,22 @@ async function getFeed(req, res) {
         u.avatar_url AS author_avatar,
         EXISTS(
           SELECT 1 FROM post_likes pl 
-          WHERE pl.post_id = p.id AND pl.user_id = $1
+          WHERE pl.post_id = p.id AND ($1::uuid IS NOT NULL AND pl.user_id = $1::uuid)
         ) AS is_liked_by_me
       FROM posts p
       JOIN users u ON u.id = p.author_id
-      ORDER BY hashtext(p.id::text || $4) DESC
-      LIMIT $2 OFFSET $3;
+      ${whereClause}
+      ${orderClause}
+      LIMIT $${limitParamIdx} OFFSET $${offsetParamIdx};
     `;
 
-    const result = await query(sql, [currentUserId || null, limit, offset, seed]);
+    const result = await query(sql, params);
+
+    let totalCount = null;
+    if (q && q.trim()) {
+      const countRes = await query('SELECT COUNT(*) FROM posts p WHERE p.content ILIKE $1;', [`%${q.trim()}%`]);
+      totalCount = parseInt(countRes.rows[0].count, 10);
+    }
 
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 
@@ -105,6 +192,8 @@ async function getFeed(req, res) {
         posts: result.rows,
         page,
         limit,
+        totalCount,
+        hasMore: result.rows.length === limit,
         engine: 'POSTGRES',
       },
     });
@@ -112,7 +201,76 @@ async function getFeed(req, res) {
     console.error('[getFeed Error]:', err);
     return res.status(500).json({
       success: false,
-      error: { message: 'Failed to load feed posts.' },
+      error: { message: 'Failed to load posts.' },
+    });
+  }
+}
+
+// 2. GET POPULAR DISCUSSIONS (EXPLORE SPOTLIGHT)
+async function getPopularDiscussions(req, res) {
+  try {
+    const activeEngine = getActiveEngine();
+    if (activeEngine === 'MONGODB') {
+      const mongoDb = getMongoDb();
+      const posts = await mongoDb.collection('posts').aggregate([
+        {
+          $addFields: {
+            score: { $add: [{ $multiply: ['$likeCount', 2] }, { $multiply: ['$commentCount', 3] }] }
+          }
+        },
+        { $sort: { score: -1, createdAt: -1 } },
+        { $limit: 4 },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'authorId',
+            foreignField: '_id',
+            as: 'author'
+          }
+        },
+        { $unwind: { path: '$author', preserveNullAndEmptyArrays: true } }
+      ]).toArray();
+
+      return res.json({
+        success: true,
+        data: {
+          discussions: posts.map((p) => ({
+            id: p._id.toString(),
+            content: p.content,
+            like_count: p.likeCount || 0,
+            comment_count: p.commentCount || 0,
+            created_at: p.createdAt,
+            author_username: p.author?.username || 'user',
+            author_name: p.author?.name || 'Community Member'
+          }))
+        }
+      });
+    }
+
+    const sql = `
+      SELECT 
+        p.id,
+        p.content,
+        p.like_count,
+        p.comment_count,
+        p.created_at,
+        u.name AS author_name,
+        u.username AS author_username
+      FROM posts p
+      JOIN users u ON u.id = p.author_id
+      ORDER BY (p.like_count * 2 + p.comment_count * 3) DESC, p.created_at DESC
+      LIMIT 4;
+    `;
+    const result = await query(sql);
+    return res.json({
+      success: true,
+      data: { discussions: result.rows }
+    });
+  } catch (err) {
+    console.error('[getPopularDiscussions Error]:', err);
+    return res.status(500).json({
+      success: false,
+      error: { message: 'Failed to load popular discussions.' }
     });
   }
 }
@@ -400,6 +558,7 @@ async function deletePost(req, res) {
 
 module.exports = {
   getFeed,
+  getPopularDiscussions,
   createPost,
   toggleLike,
   getComments,

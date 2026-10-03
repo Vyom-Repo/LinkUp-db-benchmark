@@ -252,7 +252,7 @@ export default function FeedPage() {
               </button>
 
               <button 
-                onClick={() => alert('Explore discussions across categories')}
+                onClick={() => navigate('/explore')}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -266,15 +266,18 @@ export default function FeedPage() {
                   border: 'none',
                   cursor: 'pointer',
                   textAlign: 'left',
-                  width: '100%'
+                  width: '100%',
+                  transition: 'background-color 0.15s ease'
                 }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F2EFE9'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
                 <Compass size={17} />
                 <span>Explore Topics</span>
               </button>
 
               <button 
-                onClick={() => alert('Search across all posts and community members')}
+                onClick={() => navigate('/explore')}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -288,8 +291,11 @@ export default function FeedPage() {
                   border: 'none',
                   cursor: 'pointer',
                   textAlign: 'left',
-                  width: '100%'
+                  width: '100%',
+                  transition: 'background-color 0.15s ease'
                 }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F2EFE9'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
                 <Search size={17} />
                 <span>Search</span>
