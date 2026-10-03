@@ -4,7 +4,7 @@ const path = require('path');
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const config = {
-  port: parseInt(process.env.PORT, 10) || 5000,
+  port: parseInt(process.env.PORT, 10) || 5050,
   nodeEnv: process.env.NODE_ENV || 'development',
   postgres: {
     host: process.env.PG_HOST || 'localhost',
