@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { 
   Home, 
   Compass, 
@@ -28,6 +29,7 @@ const TRENDING_TOPICS = [
 
 export default function FeedPage() {
   const { user, token } = useAuth();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -300,7 +302,7 @@ export default function FeedPage() {
 
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
               <button 
-                onClick={() => alert(`Profile for ${user?.name}`)}
+                onClick={() => user?.username && navigate(`/profile/${user.username}`)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -314,15 +316,18 @@ export default function FeedPage() {
                   border: 'none',
                   cursor: 'pointer',
                   textAlign: 'left',
-                  width: '100%'
+                  width: '100%',
+                  transition: 'background-color 0.15s ease',
                 }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F2EFE9'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
                 <User size={17} />
                 <span>My Profile</span>
               </button>
 
               <button 
-                onClick={() => alert('Your saved posts collection')}
+                onClick={() => alert('Your saved discussions collection')}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -336,8 +341,11 @@ export default function FeedPage() {
                   border: 'none',
                   cursor: 'pointer',
                   textAlign: 'left',
-                  width: '100%'
+                  width: '100%',
+                  transition: 'background-color 0.15s ease',
                 }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F2EFE9'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
                 <Bookmark size={17} />
                 <span>Saved Discussions</span>
@@ -346,20 +354,28 @@ export default function FeedPage() {
           </div>
 
           {/* Quick User Summary Card */}
-          <div style={{
-            backgroundColor: '#FFFFFF',
-            border: '1px solid var(--border-color)',
-            borderRadius: '12px',
-            padding: '1rem',
-            boxShadow: 'var(--shadow-sm)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem'
-          }}>
+          <div 
+            onClick={() => user?.username && navigate(`/profile/${user.username}`)}
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              padding: '1rem',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              cursor: 'pointer',
+              transition: 'background-color 0.15s ease, border-color 0.15s ease',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FAF8F4'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FFFFFF'}
+            title="View your profile"
+          >
             <img 
               src={user?.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${user?.username || 'user'}`}
               alt={user?.name}
-              style={{ width: '38px', height: '38px', borderRadius: '8px', border: '1px solid var(--border-color)' }}
+              style={{ width: '38px', height: '38px', borderRadius: '8px', border: '1px solid var(--border-color)', objectFit: 'cover' }}
             />
             <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

@@ -90,11 +90,26 @@ export default function Navbar() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {isAuthenticated ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+              <Link 
+                to={`/profile/${user?.username}`} 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.55rem',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '8px',
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F2EFE9'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                title="View your profile"
+              >
                 <img 
                   src={user?.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${user?.username || 'user'}`} 
                   alt={user?.name || 'User'} 
-                  style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid var(--border-color)' }}
+                  style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid var(--border-color)', objectFit: 'cover' }}
                 />
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
@@ -104,7 +119,7 @@ export default function Navbar() {
                     @{user?.username}
                   </span>
                 </div>
-              </div>
+              </Link>
 
               <button
                 onClick={handleLogout}

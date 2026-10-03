@@ -79,6 +79,10 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('sync_token');
   };
 
+  const updateUser = (updatedFields) => {
+    setUser((prev) => (prev ? { ...prev, ...updatedFields } : prev));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -89,6 +93,7 @@ export function AuthProvider({ children }) {
         register,
         login,
         logout,
+        updateUser,
       }}
     >
       {children}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Heart, MessageSquare, Share2, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -153,7 +154,19 @@ export default function PostCard({ post, onPostDeleted }) {
         justifyContent: 'space-between',
         padding: '1.15rem 1.25rem 0.5rem 1.25rem',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <Link 
+          to={`/profile/${post.author_username}`}
+          style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.75rem',
+            textDecoration: 'none',
+            color: 'inherit',
+            transition: 'opacity 0.15s ease',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.opacity = '0.85'}
+          onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+        >
           <img 
             src={post.author_avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${post.author_username}`} 
             alt={post.author_username}
@@ -181,7 +194,7 @@ export default function PostCard({ post, onPostDeleted }) {
               </span>
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* 3-dots Menu Button */}
         <div style={{ position: 'relative' }}>

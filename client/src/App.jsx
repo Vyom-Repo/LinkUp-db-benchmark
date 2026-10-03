@@ -6,6 +6,7 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import FeedPage from './pages/FeedPage';
+import ProfilePage from './pages/ProfilePage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function AppRoutes() {
@@ -32,6 +33,16 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <FeedPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Professional Community Profile Page */}
+          <Route 
+            path="/profile/:username" 
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
               </ProtectedRoute>
             } 
           />
