@@ -43,6 +43,8 @@ export default function FeedPage() {
 
   const fileInputRef = useRef(null);
 
+  const normalizeEngine = (eng) => (eng?.toUpperCase().includes('MONGO') ? 'MONGODB' : 'POSTGRES');
+
   const fetchFeed = async (showFullLoading = true) => {
     if (showFullLoading) setLoading(true);
     setRefreshing(true);
@@ -62,7 +64,7 @@ export default function FeedPage() {
       if (data.success) {
         setPosts(data.data.posts);
         if (data.data.engine) {
-          setCurrentEngine(data.data.engine);
+          setCurrentEngine(normalizeEngine(data.data.engine));
         }
         setLatencyMs(measuredMs);
       }
@@ -80,7 +82,7 @@ export default function FeedPage() {
     }
   }, [token]);
 
-  // Keep active database engine synchronized with global state without artificial delays
+  // Synchronize engine state when returning to the Feed tab after switching in Admin Dashboard
   useEffect(() => {
     let isMounted = true;
     const checkActiveEngine = async () => {
@@ -89,29 +91,27 @@ export default function FeedPage() {
         if (!res.ok) return;
         const data = await res.json();
         if (data.activeEngine && isMounted) {
+          const newNormalized = normalizeEngine(data.activeEngine);
           setCurrentEngine((prev) => {
-            if (prev !== data.activeEngine) {
-              // Engine switched: immediately update engine name, clear old latency, and fetch fresh feed
+            const prevNormalized = normalizeEngine(prev);
+            if (prevNormalized !== newNormalized) {
+              // Engine switched in another tab: clear old latency and fetch fresh feed for new engine
               setLatencyMs(null);
               fetchFeed(false);
-              return data.activeEngine;
+              return newNormalized;
             }
             return prev;
           });
         }
       } catch (err) {
-        // Silently ignore background polling errors
+        // Silently ignore health check errors
       }
     };
 
-    const interval = setInterval(checkActiveEngine, 2500);
-    const handleFocus = () => checkActiveEngine();
-    window.addEventListener('focus', handleFocus);
-
+    window.addEventListener('focus', checkActiveEngine);
     return () => {
       isMounted = false;
-      clearInterval(interval);
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('focus', checkActiveEngine);
     };
   }, [token]);
 
