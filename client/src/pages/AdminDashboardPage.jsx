@@ -1309,7 +1309,7 @@ export default function AdminDashboardPage() {
               STORAGE ANALYSIS
             </h2>
             <p style={{ fontSize: '0.8rem', color: '#64748B', margin: '0.2rem 0 0 0' }}>
-              Physical disk footprint comparison between PostgreSQL 3NF and MongoDB WiredTiger
+              Measured storage footprint under the specified database configuration (PostgreSQL 3NF uncompressed row format vs MongoDB WiredTiger Snappy block compression)
             </p>
           </div>
 

@@ -561,11 +561,9 @@ async function runBenchmarkSuite() {
 
       const searchPg = async () => {
         const sql = `
-          SELECT id, content, created_at,
-                 ts_rank(to_tsvector('english', content), plainto_tsquery('english', $1)) as rank
+          SELECT id, content, created_at
           FROM posts
           WHERE to_tsvector('english', content) @@ plainto_tsquery('english', $1)
-          ORDER BY rank DESC
           LIMIT 20;
         `;
         for (let i = 0; i < warmups; i++) await query(sql, ['PostgreSQL']);
