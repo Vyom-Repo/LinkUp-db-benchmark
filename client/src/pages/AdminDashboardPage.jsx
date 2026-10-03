@@ -7,13 +7,8 @@ import {
   RefreshCw, 
   LogOut, 
   ExternalLink, 
-  Layers, 
   ShieldCheck, 
   CheckCircle2, 
-  AlertCircle, 
-  HardDrive,
-  Cpu,
-  Clock,
   Zap,
   Users,
   MessageSquare,
@@ -101,55 +96,57 @@ export default function AdminDashboardPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#090D16',
-      backgroundImage: 'radial-gradient(ellipse at 50% 0%, #172554 0%, #090D16 70%)',
-      color: '#F8FAFC',
+      backgroundColor: 'var(--bg-primary)',
+      color: 'var(--text-primary)',
       fontFamily: "'Plus Jakarta Sans', sans-serif",
       padding: '2rem 1.5rem 4rem 1.5rem'
     }}>
       <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
 
-        {/* Top Admin Navigation Bar */}
+        {/* Top Admin Navigation Header */}
         <header style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingBottom: '1.5rem',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-          marginBottom: '2rem'
+          borderBottom: '1px solid var(--border-color)',
+          marginBottom: '2rem',
+          flexWrap: 'wrap',
+          gap: '1rem'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
             <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '10px',
-              backgroundColor: 'rgba(56, 189, 248, 0.15)',
-              border: '1px solid rgba(56, 189, 248, 0.35)',
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              backgroundColor: '#FFFFFF',
+              border: '1px solid var(--border-color)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              boxShadow: 'var(--shadow-sm)'
             }}>
-              <ShieldCheck size={22} style={{ color: '#38BDF8' }} />
+              <ShieldCheck size={24} style={{ color: 'var(--primary)' }} />
             </div>
 
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.02em' }}>
+                <span style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
                   LinkUp Admin Lab
                 </span>
                 <span style={{
                   fontSize: '0.7rem',
                   fontWeight: 700,
-                  backgroundColor: 'rgba(56, 189, 248, 0.15)',
-                  color: '#38BDF8',
+                  backgroundColor: 'var(--primary-light)',
+                  color: 'var(--primary)',
                   padding: '2px 8px',
-                  borderRadius: '9999px',
-                  border: '1px solid rgba(56, 189, 248, 0.3)'
+                  borderRadius: 'var(--radius-full)',
+                  border: '1px solid rgba(154, 91, 50, 0.2)'
                 }}>
                   ROOT ACCESS
                 </span>
               </div>
-              <p style={{ fontSize: '0.775rem', color: '#94A3B8', marginTop: '2px' }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                 GTU Sem 5 WAD & ADBMS Comparative Architecture Control
               </p>
             </div>
@@ -159,19 +156,12 @@ export default function AdminDashboardPage() {
             {/* View Community Feed */}
             <Link
               to="/feed"
+              className="btn btn-secondary"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                backgroundColor: 'rgba(30, 41, 59, 0.7)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                color: '#E2E8F0',
-                padding: '0.5rem 0.9rem',
-                borderRadius: '8px',
                 fontSize: '0.825rem',
-                fontWeight: 600,
-                textDecoration: 'none',
-                transition: 'background-color 0.15s ease'
+                padding: '0.5rem 0.95rem',
+                borderRadius: '8px',
+                textDecoration: 'none'
               }}
             >
               <span>View Community Feed</span>
@@ -182,18 +172,11 @@ export default function AdminDashboardPage() {
             <button
               onClick={fetchTelemetry}
               disabled={loading}
+              className="btn btn-secondary"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                backgroundColor: 'rgba(30, 41, 59, 0.7)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                color: '#E2E8F0',
-                padding: '0.5rem 0.9rem',
-                borderRadius: '8px',
                 fontSize: '0.825rem',
-                fontWeight: 600,
-                cursor: 'pointer'
+                padding: '0.5rem 0.95rem',
+                borderRadius: '8px'
               }}
             >
               <RefreshCw size={13} style={{ animation: loading ? 'spin 0.75s linear infinite' : 'none' }} />
@@ -207,10 +190,10 @@ export default function AdminDashboardPage() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.4rem',
-                backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.35)',
-                color: '#FCA5A5',
-                padding: '0.5rem 0.9rem',
+                backgroundColor: '#FEF2F2',
+                border: '1px solid #FCA5A5',
+                color: '#B91C1C',
+                padding: '0.5rem 0.95rem',
                 borderRadius: '8px',
                 fontSize: '0.825rem',
                 fontWeight: 600,
@@ -226,9 +209,9 @@ export default function AdminDashboardPage() {
         {/* Action / Success Banner */}
         {actionMsg && (
           <div style={{
-            backgroundColor: actionMsg.startsWith('✅') ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-            border: `1px solid ${actionMsg.startsWith('✅') ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
-            color: actionMsg.startsWith('✅') ? '#6EE7B7' : '#FCA5A5',
+            backgroundColor: actionMsg.startsWith('✅') ? '#ECFDF5' : '#FEF2F2',
+            border: `1px solid ${actionMsg.startsWith('✅') ? '#A7F3D0' : '#FCA5A5'}`,
+            color: actionMsg.startsWith('✅') ? '#065F46' : '#B91C1C',
             padding: '0.75rem 1rem',
             borderRadius: '10px',
             marginBottom: '1.5rem',
@@ -241,8 +224,8 @@ export default function AdminDashboardPage() {
 
         {/* Dynamic Database Engine Switcher Banner */}
         <section style={{
-          backgroundColor: 'rgba(30, 41, 59, 0.6)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          backgroundColor: '#FFFFFF',
+          border: '1px solid var(--border-color)',
           borderRadius: '14px',
           padding: '1.5rem',
           marginBottom: '2rem',
@@ -250,16 +233,17 @@ export default function AdminDashboardPage() {
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '1.25rem'
+          gap: '1.25rem',
+          boxShadow: 'var(--shadow-sm)'
         }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-              <Zap size={18} style={{ color: currentEngine === 'MONGODB' ? '#10B981' : '#38BDF8' }} />
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#FFFFFF' }}>
-                Active Database Engine: <span style={{ color: currentEngine === 'MONGODB' ? '#10B981' : '#38BDF8' }}>{currentEngine}</span>
+              <Zap size={18} style={{ color: currentEngine === 'MONGODB' ? '#10B981' : '#3B82F6' }} />
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                Active Database Engine: <span style={{ color: currentEngine === 'MONGODB' ? '#059669' : '#2563EB' }}>{currentEngine}</span>
               </h2>
             </div>
-            <p style={{ fontSize: '0.825rem', color: '#94A3B8' }}>
+            <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
               All feed queries and API operations are currently being served live from {currentEngine === 'MONGODB' ? 'MongoDB WiredTiger document store' : 'PostgreSQL 3NF relational engine'}.
             </p>
           </div>
@@ -273,9 +257,9 @@ export default function AdminDashboardPage() {
                 borderRadius: '8px',
                 fontSize: '0.85rem',
                 fontWeight: 700,
-                border: currentEngine === 'POSTGRES' ? '1px solid #38BDF8' : '1px solid rgba(255, 255, 255, 0.15)',
-                backgroundColor: currentEngine === 'POSTGRES' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(15, 23, 42, 0.6)',
-                color: currentEngine === 'POSTGRES' ? '#38BDF8' : '#94A3B8',
+                border: currentEngine === 'POSTGRES' ? '1px solid #3B82F6' : '1px solid var(--border-color)',
+                backgroundColor: currentEngine === 'POSTGRES' ? '#EFF6FF' : '#FAF8F4',
+                color: currentEngine === 'POSTGRES' ? '#1D4ED8' : 'var(--text-secondary)',
                 cursor: currentEngine === 'POSTGRES' ? 'default' : 'pointer',
                 opacity: switching ? 0.6 : 1,
                 transition: 'all 0.15s ease'
@@ -292,9 +276,9 @@ export default function AdminDashboardPage() {
                 borderRadius: '8px',
                 fontSize: '0.85rem',
                 fontWeight: 700,
-                border: currentEngine === 'MONGODB' ? '1px solid #10B981' : '1px solid rgba(255, 255, 255, 0.15)',
-                backgroundColor: currentEngine === 'MONGODB' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(15, 23, 42, 0.6)',
-                color: currentEngine === 'MONGODB' ? '#10B981' : '#94A3B8',
+                border: currentEngine === 'MONGODB' ? '1px solid #10B981' : '1px solid var(--border-color)',
+                backgroundColor: currentEngine === 'MONGODB' ? '#ECFDF5' : '#FAF8F4',
+                color: currentEngine === 'MONGODB' ? '#047857' : 'var(--text-secondary)',
                 cursor: currentEngine === 'MONGODB' ? 'default' : 'pointer',
                 opacity: switching ? 0.6 : 1,
                 transition: 'all 0.15s ease'
@@ -307,7 +291,7 @@ export default function AdminDashboardPage() {
 
         {/* Dataset Tier 2 Metrics Cards */}
         <section style={{ marginBottom: '2.5rem' }}>
-          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.85rem' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.85rem' }}>
             Platform Data Volume (Tier 2 Benchmark Dataset)
           </div>
 
@@ -318,76 +302,80 @@ export default function AdminDashboardPage() {
           }}>
             {/* Total Posts */}
             <div style={{
-              backgroundColor: 'rgba(30, 41, 59, 0.5)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              backgroundColor: '#FFFFFF',
+              border: '1px solid var(--border-color)',
               borderRadius: '12px',
               padding: '1.25rem',
+              boxShadow: 'var(--shadow-sm)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 600 }}>Total Discussions</span>
-                <FileText size={16} style={{ color: '#38BDF8' }} />
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Discussions</span>
+                <FileText size={16} style={{ color: '#2563EB' }} />
               </div>
-              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#FFFFFF' }}>
+              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                 {metrics?.postgres?.posts?.toLocaleString() || '100,012'}
               </div>
-              <div style={{ fontSize: '0.725rem', color: '#64748B', marginTop: '4px' }}>
+              <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                 100% synchronized in both DBs
               </div>
             </div>
 
             {/* Total Comments */}
             <div style={{
-              backgroundColor: 'rgba(30, 41, 59, 0.5)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              backgroundColor: '#FFFFFF',
+              border: '1px solid var(--border-color)',
               borderRadius: '12px',
               padding: '1.25rem',
+              boxShadow: 'var(--shadow-sm)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 600 }}>Total Comments</span>
-                <MessageSquare size={16} style={{ color: '#10B981' }} />
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Comments</span>
+                <MessageSquare size={16} style={{ color: '#059669' }} />
               </div>
-              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#FFFFFF' }}>
+              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                 {metrics?.postgres?.comments?.toLocaleString() || '400,013'}
               </div>
-              <div style={{ fontSize: '0.725rem', color: '#64748B', marginTop: '4px' }}>
-                Relational foreign key & Mongo embedded
+              <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                Relational FK & Mongo embedded
               </div>
             </div>
 
             {/* Total Likes */}
             <div style={{
-              backgroundColor: 'rgba(30, 41, 59, 0.5)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              backgroundColor: '#FFFFFF',
+              border: '1px solid var(--border-color)',
               borderRadius: '12px',
               padding: '1.25rem',
+              boxShadow: 'var(--shadow-sm)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 600 }}>Total Likes</span>
-                <Heart size={16} style={{ color: '#F43F5E' }} />
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Likes</span>
+                <Heart size={16} style={{ color: '#E11D48' }} />
               </div>
-              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#FFFFFF' }}>
+              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                 {metrics?.postgres?.likes?.toLocaleString() || '800,003'}
               </div>
-              <div style={{ fontSize: '0.725rem', color: '#64748B', marginTop: '4px' }}>
+              <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                 Unique compound key indexed
               </div>
             </div>
 
             {/* Community Authors */}
             <div style={{
-              backgroundColor: 'rgba(30, 41, 59, 0.5)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              backgroundColor: '#FFFFFF',
+              border: '1px solid var(--border-color)',
               borderRadius: '12px',
               padding: '1.25rem',
+              boxShadow: 'var(--shadow-sm)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 600 }}>Verified Authors</span>
-                <Users size={16} style={{ color: '#A855F7' }} />
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Verified Authors</span>
+                <Users size={16} style={{ color: '#7C3AED' }} />
               </div>
-              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#FFFFFF' }}>
+              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                 {metrics?.postgres?.users?.toLocaleString() || '105'}
               </div>
-              <div style={{ fontSize: '0.725rem', color: '#64748B', marginTop: '4px' }}>
+              <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                 Engineering student identities
               </div>
             </div>
@@ -396,7 +384,7 @@ export default function AdminDashboardPage() {
 
         {/* Dual Database Comparative Architecture Grid */}
         <section>
-          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.85rem' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.85rem' }}>
             Comparative Database Health & Storage
           </div>
 
@@ -407,16 +395,16 @@ export default function AdminDashboardPage() {
           }}>
             {/* PostgreSQL Card */}
             <div style={{
-              backgroundColor: 'rgba(30, 41, 59, 0.5)',
-              border: currentEngine === 'POSTGRES' ? '1px solid #38BDF8' : '1px solid rgba(255, 255, 255, 0.08)',
+              backgroundColor: '#FFFFFF',
+              border: currentEngine === 'POSTGRES' ? '2px solid #3B82F6' : '1px solid var(--border-color)',
               borderRadius: '14px',
               padding: '1.5rem',
-              boxShadow: currentEngine === 'POSTGRES' ? '0 0 20px rgba(56, 189, 248, 0.15)' : 'none'
+              boxShadow: currentEngine === 'POSTGRES' ? '0 4px 16px rgba(59, 130, 246, 0.12)' : 'var(--shadow-sm)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Database size={20} style={{ color: '#38BDF8' }} />
-                  <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#FFFFFF' }}>
+                  <Database size={20} style={{ color: '#2563EB' }} />
+                  <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                     PostgreSQL 14 (3NF Relational)
                   </span>
                 </div>
@@ -426,10 +414,10 @@ export default function AdminDashboardPage() {
                   gap: '0.35rem',
                   fontSize: '0.75rem',
                   fontWeight: 700,
-                  color: dbStatus?.postgres?.connected ? '#34D399' : '#F87171',
-                  backgroundColor: dbStatus?.postgres?.connected ? 'rgba(52, 211, 153, 0.1)' : 'rgba(248, 113, 113, 0.1)',
+                  color: dbStatus?.postgres?.connected ? '#065F46' : '#B91C1C',
+                  backgroundColor: dbStatus?.postgres?.connected ? '#ECFDF5' : '#FEF2F2',
                   padding: '2px 8px',
-                  borderRadius: '9999px'
+                  borderRadius: 'var(--radius-full)'
                 }}>
                   <CheckCircle2 size={12} />
                   <span>{dbStatus?.postgres?.connected ? 'CONNECTED' : 'DISCONNECTED'}</span>
@@ -437,42 +425,42 @@ export default function AdminDashboardPage() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.85rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', paddingBottom: '0.5rem' }}>
-                  <span style={{ color: '#94A3B8' }}>Disk Storage on Volume:</span>
-                  <strong style={{ color: '#FFFFFF' }}>{metrics?.postgres?.dbSize || '311 MB'}</strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Disk Storage on Volume:</span>
+                  <strong style={{ color: 'var(--text-primary)' }}>{metrics?.postgres?.dbSize || '319 MB'}</strong>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', paddingBottom: '0.5rem' }}>
-                  <span style={{ color: '#94A3B8' }}>Live Ping Latency:</span>
-                  <strong style={{ color: '#38BDF8' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Live Ping Latency:</span>
+                  <strong style={{ color: '#2563EB' }}>
                     {dbStatus?.postgres?.latencyMs !== null ? `${dbStatus.postgres.latencyMs.toFixed(2)} ms` : 'N/A'}
                   </strong>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', paddingBottom: '0.5rem' }}>
-                  <span style={{ color: '#94A3B8' }}>Schema Normalization:</span>
-                  <span style={{ color: '#E2E8F0' }}>Strict 3NF with B-Tree Indexes</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Schema Normalization:</span>
+                  <span style={{ color: 'var(--text-primary)' }}>Strict 3NF with B-Tree Indexes</span>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94A3B8' }}>Hash Sort Performance:</span>
-                  <span style={{ color: '#E2E8F0' }}>~110–190 ms scan across 100k rows</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>Hash Sort Performance:</span>
+                  <span style={{ color: 'var(--text-primary)' }}>~110–190 ms scan across 100k rows</span>
                 </div>
               </div>
             </div>
 
             {/* MongoDB Card */}
             <div style={{
-              backgroundColor: 'rgba(30, 41, 59, 0.5)',
-              border: currentEngine === 'MONGODB' ? '1px solid #10B981' : '1px solid rgba(255, 255, 255, 0.08)',
+              backgroundColor: '#FFFFFF',
+              border: currentEngine === 'MONGODB' ? '2px solid #10B981' : '1px solid var(--border-color)',
               borderRadius: '14px',
               padding: '1.5rem',
-              boxShadow: currentEngine === 'MONGODB' ? '0 0 20px rgba(16, 185, 129, 0.15)' : 'none'
+              boxShadow: currentEngine === 'MONGODB' ? '0 4px 16px rgba(16, 185, 129, 0.12)' : 'var(--shadow-sm)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Server size={20} style={{ color: '#10B981' }} />
-                  <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#FFFFFF' }}>
+                  <Server size={20} style={{ color: '#059669' }} />
+                  <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                     MongoDB (WiredTiger Document)
                   </span>
                 </div>
@@ -482,10 +470,10 @@ export default function AdminDashboardPage() {
                   gap: '0.35rem',
                   fontSize: '0.75rem',
                   fontWeight: 700,
-                  color: dbStatus?.mongodb?.connected ? '#34D399' : '#F87171',
-                  backgroundColor: dbStatus?.mongodb?.connected ? 'rgba(52, 211, 153, 0.1)' : 'rgba(248, 113, 113, 0.1)',
+                  color: dbStatus?.mongodb?.connected ? '#065F46' : '#B91C1C',
+                  backgroundColor: dbStatus?.mongodb?.connected ? '#ECFDF5' : '#FEF2F2',
                   padding: '2px 8px',
-                  borderRadius: '9999px'
+                  borderRadius: 'var(--radius-full)'
                 }}>
                   <CheckCircle2 size={12} />
                   <span>{dbStatus?.mongodb?.connected ? 'CONNECTED' : 'DISCONNECTED'}</span>
@@ -493,26 +481,26 @@ export default function AdminDashboardPage() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.85rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', paddingBottom: '0.5rem' }}>
-                  <span style={{ color: '#94A3B8' }}>Compressed Storage (Snappy):</span>
-                  <strong style={{ color: '#FFFFFF' }}>{metrics?.mongodb?.storageSize || '155.0 MB'}</strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Compressed Storage (Snappy):</span>
+                  <strong style={{ color: 'var(--text-primary)' }}>{metrics?.mongodb?.storageSize || '138.0 MB'}</strong>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', paddingBottom: '0.5rem' }}>
-                  <span style={{ color: '#94A3B8' }}>Live Ping Latency:</span>
-                  <strong style={{ color: '#10B981' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Live Ping Latency:</span>
+                  <strong style={{ color: '#059669' }}>
                     {dbStatus?.mongodb?.latencyMs !== null ? `${dbStatus.mongodb.latencyMs.toFixed(2)} ms` : 'N/A'}
                   </strong>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', paddingBottom: '0.5rem' }}>
-                  <span style={{ color: '#94A3B8' }}>Data Representation:</span>
-                  <span style={{ color: '#E2E8F0' }}>Polymorphic BSON Collections</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Data Representation:</span>
+                  <span style={{ color: 'var(--text-primary)' }}>Polymorphic BSON Collections</span>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94A3B8' }}>Pipeline Sampling Speed:</span>
-                  <span style={{ color: '#E2E8F0' }}>~10–25 ms random cursor extraction</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>Pipeline Sampling Speed:</span>
+                  <span style={{ color: 'var(--text-primary)' }}>~10–25 ms random cursor extraction</span>
                 </div>
               </div>
             </div>

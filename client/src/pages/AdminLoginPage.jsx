@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldAlert, Lock, Mail, Terminal, ArrowRight, Database, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, Lock, Mail, Terminal, ArrowRight, Database, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function AdminLoginPage() {
@@ -9,7 +9,7 @@ export default function AdminLoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   
-  const { login, logout, user, isAuthenticated } = useAuth();
+  const { login, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   // If already authenticated as admin, go straight to /admin
@@ -47,7 +47,7 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // Check if logged-in user possesses true administrative clearance
+      // Verify that user possesses platform administrator privileges
       const loggedUser = data.data.user;
       if (!loggedUser.isAdmin) {
         setErrorMsg('Access Denied: Account does not possess administrator clearance.');
@@ -68,33 +68,34 @@ export default function AdminLoginPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#0F172A',
-      backgroundImage: 'radial-gradient(ellipse at 50% 0%, #1E293B 0%, #0F172A 75%)',
+      backgroundColor: 'var(--bg-primary)',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: '2rem 1.5rem',
-      color: '#F8FAFC',
+      padding: '2.5rem 1.5rem',
+      color: 'var(--text-primary)',
       fontFamily: "'Plus Jakarta Sans', sans-serif"
     }}>
       <div style={{ maxWidth: '440px', width: '100%' }}>
         
         {/* Security Header Banner */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          
+          {/* Security Shield Icon */}
           <div style={{
             width: '64px',
             height: '64px',
             borderRadius: '16px',
-            backgroundColor: 'rgba(30, 41, 59, 0.8)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            backgroundColor: '#FFFFFF',
+            border: '1px solid var(--border-color)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             margin: '0 auto 1.25rem auto',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
+            boxShadow: 'var(--shadow-md)'
           }}>
-            <ShieldAlert size={32} style={{ color: '#38BDF8' }} />
+            <ShieldCheck size={32} style={{ color: 'var(--primary)' }} />
           </div>
 
           <div style={{
@@ -102,12 +103,12 @@ export default function AdminLoginPage() {
             alignItems: 'center',
             gap: '0.4rem',
             padding: '0.25rem 0.75rem',
-            borderRadius: '9999px',
-            backgroundColor: 'rgba(56, 189, 248, 0.1)',
-            border: '1px solid rgba(56, 189, 248, 0.25)',
+            borderRadius: 'var(--radius-full)',
+            backgroundColor: 'var(--primary-light)',
+            border: '1px solid rgba(154, 91, 50, 0.2)',
             fontSize: '0.75rem',
             fontWeight: 700,
-            color: '#38BDF8',
+            color: 'var(--primary)',
             marginBottom: '0.75rem',
             letterSpacing: '0.04em',
             textTransform: 'uppercase'
@@ -116,34 +117,32 @@ export default function AdminLoginPage() {
             <span>Restricted Gateway</span>
           </div>
 
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.03em', color: '#FFFFFF', marginBottom: '0.4rem' }}>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
             LinkUp Admin Portal
           </h1>
-          <p style={{ fontSize: '0.85rem', color: '#94A3B8', lineHeight: 1.4 }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
             System telemetry, dual-engine switching & database benchmark control
           </p>
         </div>
 
         {/* Security Login Card */}
         <div style={{
-          backgroundColor: 'rgba(30, 41, 59, 0.65)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          backgroundColor: '#FFFFFF',
+          border: '1px solid var(--border-color)',
           borderRadius: '16px',
           padding: '2rem 1.75rem',
-          boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.6)'
+          boxShadow: 'var(--shadow-md)'
         }}>
           {errorMsg && (
             <div style={{
               display: 'flex',
               alignItems: 'flex-start',
               gap: '0.65rem',
-              backgroundColor: 'rgba(239, 68, 68, 0.12)',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
+              backgroundColor: '#FEF2F2',
+              border: '1px solid #FCA5A5',
               borderRadius: '8px',
               padding: '0.75rem 0.85rem',
-              color: '#FCA5A5',
+              color: '#B91C1C',
               fontSize: '0.825rem',
               marginBottom: '1.25rem',
               lineHeight: 1.4
@@ -157,11 +156,11 @@ export default function AdminLoginPage() {
             
             {/* Administrator Identifier */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#CBD5E1', marginBottom: '0.4rem' }}>
+              <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
                 Administrator ID / Email
               </label>
               <div style={{ position: 'relative' }}>
-                <Mail size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+                <Mail size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                 <input 
                   type="text"
                   placeholder="admin@sync.local or admin"
@@ -170,28 +169,28 @@ export default function AdminLoginPage() {
                   disabled={submitting}
                   style={{
                     width: '100%',
-                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    backgroundColor: '#FAF8F4',
+                    border: '1px solid var(--border-color)',
                     borderRadius: '8px',
                     padding: '0.65rem 0.85rem 0.65rem 2.4rem',
-                    color: '#FFFFFF',
+                    color: 'var(--text-primary)',
                     fontSize: '0.875rem',
                     outline: 'none',
                     transition: 'border-color 0.15s ease'
                   }}
-                  onFocus={(e) => e.target.style.borderColor = '#38BDF8'}
-                  onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.12)'}
+                  onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+                  onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
                 />
               </div>
             </div>
 
             {/* Master Password */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#CBD5E1', marginBottom: '0.4rem' }}>
+              <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
                 Master Authorization Password
               </label>
               <div style={{ position: 'relative' }}>
-                <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+                <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                 <input 
                   type="password"
                   placeholder="••••••••••••"
@@ -200,17 +199,17 @@ export default function AdminLoginPage() {
                   disabled={submitting}
                   style={{
                     width: '100%',
-                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    backgroundColor: '#FAF8F4',
+                    border: '1px solid var(--border-color)',
                     borderRadius: '8px',
                     padding: '0.65rem 0.85rem 0.65rem 2.4rem',
-                    color: '#FFFFFF',
+                    color: 'var(--text-primary)',
                     fontSize: '0.875rem',
                     outline: 'none',
                     transition: 'border-color 0.15s ease'
                   }}
-                  onFocus={(e) => e.target.style.borderColor = '#38BDF8'}
-                  onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.12)'}
+                  onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+                  onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
                 />
               </div>
             </div>
@@ -219,24 +218,15 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={submitting}
+              className="btn btn-primary"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                backgroundColor: '#0284C7',
-                backgroundImage: 'linear-gradient(to right, #0284C7, #0EA5E9)',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '8px',
+                width: '100%',
                 padding: '0.75rem 1.25rem',
                 fontSize: '0.875rem',
                 fontWeight: 700,
-                cursor: submitting ? 'not-allowed' : 'pointer',
-                opacity: submitting ? 0.7 : 1,
+                borderRadius: '8px',
                 marginTop: '0.5rem',
-                boxShadow: '0 4px 14px rgba(14, 165, 233, 0.3)',
-                transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+                boxShadow: 'var(--shadow-sm)'
               }}
             >
               <span>{submitting ? 'Verifying Credentials...' : 'Authenticate as Administrator'}</span>
@@ -248,14 +238,14 @@ export default function AdminLoginPage() {
           <div style={{
             marginTop: '1.5rem',
             paddingTop: '1.25rem',
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+            borderTop: '1px solid var(--border-color)',
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
-            fontSize: '0.725rem',
-            color: '#64748B'
+            fontSize: '0.75rem',
+            color: 'var(--text-muted)'
           }}>
-            <Database size={13} style={{ color: '#38BDF8' }} />
+            <Database size={13} style={{ color: 'var(--primary)' }} />
             <span>Dual Database Benchmark & Architecture Lab Control Gateway</span>
           </div>
 
@@ -267,12 +257,12 @@ export default function AdminLoginPage() {
             to="/" 
             style={{
               fontSize: '0.825rem',
-              color: '#94A3B8',
+              color: 'var(--text-secondary)',
               textDecoration: 'none',
               transition: 'color 0.15s ease'
             }}
-            onMouseEnter={(e) => e.target.style.color = '#FFFFFF'}
-            onMouseLeave={(e) => e.target.style.color = '#94A3B8'}
+            onMouseEnter={(e) => e.target.style.color = 'var(--text-primary)'}
+            onMouseLeave={(e) => e.target.style.color = 'var(--text-secondary)'}
           >
             ← Return to LinkUp Community Portal
           </Link>
